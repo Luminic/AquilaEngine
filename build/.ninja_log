@@ -1,0 +1,10 @@
+# ninja log v5
+1	3109	1608411230621729966	src/CMakeFiles/vulkan-engine.dir/main.cpp.o	6e54a97eea5e9b57
+4562	4730	1608412425971734591	../bin/vulkan-engine	af10d8d2419768be
+0	34	1608412715507948894	build.ninja	2568f6fc0e5f9588
+1	4562	1608412425801736825	src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o	10b47c7053463630
+1	3820	1608412118272474343	src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o	4ea50f7ffc1577e4
+1	3050	1608412719311232701	src/CMakeFiles/vulkan-engine.dir/main.cpp.o	6e54a97eea5e9b57
+1	3712	1608412719971224107	src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o	4ea50f7ffc1577e4
+1	4431	1608412720691214732	src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o	10b47c7053463630
+4431	4590	1608412720851212648	../bin/vulkan-engine	af10d8d2419768be
