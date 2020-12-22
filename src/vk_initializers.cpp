@@ -129,4 +129,145 @@ namespace vk_init {
         score += sw_ch_support.present_modes.size() * 100;
     }
 
+
+    VulkanInitializer::VulkanInitializer(vk::Instance& instance, vk::PhysicalDevice& gpu, vk::Device& device) :
+        instance(instance), gpu(gpu), device(device) {}
+
+    bool VulkanInitializer::create_instance(
+        const char* app_name,
+        uint32_t app_version,
+        const char* engine_name,
+        uint32_t engine_version,
+        std::unordered_map<std::string, bool>& extensions
+    ) {
+        vk::ApplicationInfo app_info(app_name, app_version, engine_name, engine_version, VK_API_VERSION_1_2);
+        vk::InstanceCreateInfo instance_create_info({}, &app_info);
+
+        // Check extension availability
+
+        auto [eiep_result, supported_extensions] = vk::enumerateInstanceExtensionProperties();
+
+        std::vector<const char*> requested_extensions;
+
+        if (eiep_result == vk::Result::eSuccess) {
+            bool has_all_required;
+            std::tie(has_all_required, requested_extensions) = vk_init::get_requested_and_supported_extensions(extensions, supported_extensions, true, "Unsupported extension");
+            if (!has_all_required) return false;
+        } else {
+            std::cerr << "Unable to query supported extensions: " << int(eiep_result) << std::endl;
+            // Try requesting all extensions anyways--they might be supported
+            for (auto extension : extensions) {
+                extension.second = true;
+                requested_extensions.push_back(extension.first.c_str());
+            }
+        }
+
+        instance_create_info.setPEnabledExtensionNames(requested_extensions);
+        
+
+        #ifndef NDEBUG // Add Vulkan Layers for debug builds
+
+            std::vector<const char*> validation_layers = { "VK_LAYER_KHRONOS_validation" };
+
+            // Check layer availability
+
+            auto [eilp_result, supported_layers] = vk::enumerateInstanceLayerProperties();
+
+            if (eilp_result == vk::Result::eSuccess) {
+                for (int i=validation_layers.size()-1; i >= 0; --i) {
+                    const char* requested_layer = validation_layers[i];
+                    bool supported = false;
+                    for (auto supported_layer : supported_layers) {
+                        if (strcmp(requested_layer, supported_layer.layerName) == 0) {
+                            supported = true;
+                            break;
+                        }
+                    }
+                    if (!supported) {
+                        std::cerr << "Unsupported layer: " << requested_layer << std::endl;
+                        validation_layers.erase(validation_layers.begin() + i);
+                    }
+                }
+                instance_create_info.setPEnabledLayerNames(validation_layers);
+            } else {
+                std::cerr << "Unable to query suported layers: " << int(eilp_result) << ". No layers enabled." << std::endl;
+            }
+
+        #endif
+
+        // Create Instance
+
+        vk::Result ci_result;
+        std::tie(ci_result, instance) = vk::createInstance(instance_create_info);
+        CHECK_VK_RESULT_RF(ci_result, "Failed to create vulkan instance");
+
+        return true;
+    }
+
+    bool VulkanInitializer::choose_gpu(
+        std::unordered_map<std::string, bool>& device_extensions,
+        vk::SurfaceKHR compatible_surface
+    ) {
+        auto [epd_result, physical_devices] = instance.enumeratePhysicalDevices();
+        CHECK_VK_RESULT_RF(epd_result, "Failed to query GPUs");
+
+        if (physical_devices.size() == 0) {
+            std::cerr << "Failed to find GPU." << std::endl;
+            return false;
+        }
+        
+        int best_score = -1;
+        for (auto& physical_device : physical_devices) {
+            vk_init::GPUProperties tmp(physical_device, device_extensions, compatible_surface);
+            if (tmp.score > best_score) {
+                gpu = physical_device;
+                gpu_properties = tmp;
+                best_score = tmp.score;
+            }
+        }
+        if (best_score < 0) {
+            gpu = nullptr;
+            std::cerr << "No suitable GPU." << std::endl;
+            return false;
+        }
+        
+        return true;
+    }
+
+    bool VulkanInitializer::create_device(std::unordered_map<std::string, bool>& device_extensions) {
+        float queue_priorites = 1.0f;
+        std::array<vk::DeviceQueueCreateInfo, 1> device_queue_create_infos{{
+            {{}, gpu_properties.graphics_present_queue_family, 1, &queue_priorites}
+        }};
+
+        // Warn about unsupported device extensions and update `device_extensions`
+        // so that supported extensions are `true` and unsupported extensions are
+        // `false`
+        for (auto& extension : device_extensions) {
+            extension.second = false;
+            for (auto rs_extension : gpu_properties.supported_requested_device_extensions) {
+                if (extension.first == rs_extension) {
+                    extension.second = true;
+                }
+            }
+            if (!extension.second) {
+                std::cerr << "Unsupported device extension: " << extension.first << std::endl;
+            }
+        }
+
+        vk::PhysicalDeviceFeatures device_features{};
+
+        vk::DeviceCreateInfo device_create_info({}, device_queue_create_infos, {}, gpu_properties.supported_requested_device_extensions, &device_features);
+
+        vk::Result cd_result;
+        std::tie(cd_result, device) = gpu.createDevice(device_create_info);
+        CHECK_VK_RESULT_RF(cd_result, "Failed to create logical device");
+
+        return true;
+    }
+
+    GPUProperties VulkanInitializer::get_gpu_properties() {
+        return gpu_properties;
+    }
+
 }

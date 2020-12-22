@@ -18,7 +18,7 @@ public:
 
 private:
     bool initialized{ false };
-	int frame_number{0};
+	uint64_t frame_number{0};
 
 	vk::Extent2D window_extent{ 1700, 900 };
 
@@ -48,15 +48,24 @@ private:
     vk::PresentModeKHR present_mode;
     vk::SwapchainKHR swap_chain;
 
+    vk::RenderPass render_pass;
+    uint32_t image_count{0};
+    std::vector<vk::Image> swap_chain_images;
+	std::vector<vk::ImageView> swap_chain_image_views;
+    std::vector<vk::Framebuffer> framebuffers;
+
     vk::CommandPool command_pool;
     vk::CommandBuffer main_command_buffer;
 
+    vk::Fence render_fence;
+    vk::Semaphore present_semaphore, render_semaphore;
+
     bool init_vulkan();
-    bool create_instance();
-    bool select_physical_device();
-    bool create_logical_device();
     bool init_swapchain();
+    bool init_default_renderpass();
+    bool init_framebuffers();
     bool init_commands();
+    bool init_sync_structures();
 
     void draw();
 };

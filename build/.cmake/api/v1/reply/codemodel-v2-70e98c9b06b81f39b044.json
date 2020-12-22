@@ -15,7 +15,11 @@
 						"string" : "3.0.0"
 					},
 					"projectIndex" : 0,
-					"source" : "."
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
 				},
 				{
 					"build" : "src",
@@ -28,11 +32,11 @@
 					"source" : "src",
 					"targetIndexes" : 
 					[
-						0
+						1
 					]
 				}
 			],
-			"name" : "",
+			"name" : "Debug",
 			"projects" : 
 			[
 				{
@@ -44,16 +48,24 @@
 					"name" : "vulkan-engine",
 					"targetIndexes" : 
 					[
-						0
+						0,
+						1
 					]
 				}
 			],
 			"targets" : 
 			[
 				{
+					"directoryIndex" : 0,
+					"id" : "Shaders::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-Shaders-Debug-6e0572cdf0a93610a839.json",
+					"name" : "Shaders",
+					"projectIndex" : 0
+				},
+				{
 					"directoryIndex" : 1,
 					"id" : "vulkan-engine::@145eef247bfb46b6828c",
-					"jsonFile" : "target-vulkan-engine-af6f328edc11a7669098.json",
+					"jsonFile" : "target-vulkan-engine-Debug-5339e1cf63268ab63ab1.json",
 					"name" : "vulkan-engine",
 					"projectIndex" : 0
 				}

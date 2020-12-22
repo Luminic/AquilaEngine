@@ -12,11 +12,13 @@
 		[
 			"add_executable",
 			"target_link_libraries",
+			"add_dependencies",
 			"target_include_directories"
 		],
 		"files" : 
 		[
-			"src/CMakeLists.txt"
+			"src/CMakeLists.txt",
+			"CMakeLists.txt"
 		],
 		"nodes" : 
 		[
@@ -36,7 +38,16 @@
 				"parent" : 0
 			},
 			{
+				"file" : 1
+			},
+			{
 				"command" : 2,
+				"file" : 1,
+				"line" : 35,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
 				"file" : 0,
 				"line" : 10,
 				"parent" : 0
@@ -49,13 +60,16 @@
 			"compileCommandFragments" : 
 			[
 				{
+					"fragment" : "-g"
+				},
+				{
 					"fragment" : "-std=gnu++17"
 				}
 			],
 			"includes" : 
 			[
 				{
-					"backtrace" : 3,
+					"backtrace" : 5,
 					"path" : "/home/l/C++/Vulkan/Vulkan-Engine/include"
 				},
 				{
@@ -81,11 +95,22 @@
 			]
 		}
 	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 4,
+			"id" : "Shaders::@6890427a1f51a3e7e1df"
+		}
+	],
 	"id" : "vulkan-engine::@145eef247bfb46b6828c",
 	"link" : 
 	{
 		"commandFragments" : 
 		[
+			{
+				"fragment" : "-g",
+				"role" : "flags"
+			},
 			{
 				"fragment" : "-rdynamic",
 				"role" : "flags"

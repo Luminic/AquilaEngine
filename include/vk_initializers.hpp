@@ -71,6 +71,37 @@ namespace vk_init {
             vk::SurfaceKHR surface
         );
     };
+
+    class VulkanInitializer {
+    public:
+        VulkanInitializer(
+            vk::Instance& instance,
+            vk::PhysicalDevice& gpu,
+            vk::Device& device
+        );
+
+        bool create_instance(
+            const char* app_name,    uint32_t app_version,
+            const char* engine_name, uint32_t engine_version,
+            std::unordered_map<std::string, bool>& extensions
+        );
+
+        bool choose_gpu(
+            std::unordered_map<std::string, bool>& device_extensions,
+            vk::SurfaceKHR compatible_surface
+        );
+
+        bool create_device(std::unordered_map<std::string, bool>& device_extensions);
+
+        GPUProperties get_gpu_properties();
+
+    private:
+        vk::Instance& instance;
+        vk::PhysicalDevice& gpu;
+        vk::Device& device;
+        GPUProperties gpu_properties;
+    };
+
 }
 
 #endif

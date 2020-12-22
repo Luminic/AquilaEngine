@@ -69,11 +69,34 @@ void VulkanEngine::cleanup() {
     if (initialized) {
         std::cout << "cleanup\n";
 
+        // Make sure everything has finished
+        if (device)
+            CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
+
+        if (render_fence) device.destroyFence(render_fence);
+        render_fence = nullptr;
+
+        if (render_semaphore) device.destroySemaphore(render_semaphore);
+        render_semaphore = nullptr;
+        
+        if (present_semaphore) device.destroySemaphore(present_semaphore);
+        present_semaphore = nullptr;
+
         if (main_command_buffer) device.freeCommandBuffers(command_pool, main_command_buffer);
         main_command_buffer = nullptr;
 
         if (command_pool) device.destroyCommandPool(command_pool);
         command_pool = nullptr;
+
+        for (auto& framebuffer : framebuffers) { device.destroyFramebuffer(framebuffer); }
+        framebuffers.clear();
+
+        for (auto& image_view : swap_chain_image_views) { device.destroyImageView(image_view); }
+        swap_chain_image_views.clear();
+        swap_chain_images.clear();
+
+        if (render_pass) device.destroyRenderPass(render_pass);
+        render_pass = nullptr;
 
         if (swap_chain) device.destroySwapchainKHR(swap_chain);
         swap_chain = nullptr;
@@ -95,27 +118,7 @@ void VulkanEngine::cleanup() {
 }
 
 bool VulkanEngine::init_vulkan() {
-    device_extensions[VK_KHR_SWAPCHAIN_EXTENSION_NAME] = true;
-
-    if (!create_instance()) return false;
-
-    VkSurfaceKHR sdl_surface;
-    SDL_Vulkan_CreateSurface(window, instance, &sdl_surface);
-    surface = static_cast<vk::SurfaceKHR>(sdl_surface);
-
-    if (!select_physical_device()) return false;
-    if (!create_logical_device()) return false;
-    if (!init_swapchain()) return false;
-    if (!init_commands()) return false;
-
-    return true;
-}
-
-bool VulkanEngine::create_instance() {
-    vk::ApplicationInfo app_info("Vulkan Test", 1, "Vulkan Engine", 1, VK_API_VERSION_1_2);
-    vk::InstanceCreateInfo instance_create_info({}, &app_info);
-
-    // Query needed extensions
+    // Get extensions
 
     unsigned int sdl_extension_count = 0;
     if (!SDL_Vulkan_GetInstanceExtensions(window, &sdl_extension_count, nullptr)) return false;
@@ -126,124 +129,29 @@ bool VulkanEngine::create_instance() {
         extensions[std::string(extension)] = true;
     }
 
-    // Check extension availability
+    device_extensions[VK_KHR_SWAPCHAIN_EXTENSION_NAME] = true;
 
-    auto [eiep_result, supported_extensions] = vk::enumerateInstanceExtensionProperties();
+    // Begin to actually initalize vulkan
 
-    std::vector<const char*> requested_extensions;
+    vk_init::VulkanInitializer vulkan_initializer(instance, chosen_gpu, device);
 
-    if (eiep_result == vk::Result::eSuccess) {
-        bool has_all_required;
-        std::tie(has_all_required, requested_extensions) = vk_init::get_requested_and_supported_extensions(extensions, supported_extensions, true, "Unsupported extension");
-        if (!has_all_required) return false;
-    } else {
-        std::cerr << "Unable to query supported extensions: " << int(eiep_result) << std::endl;
-        // Try requesting all extensions anyways--they might be supported
-        for (auto extension : extensions) {
-            extension.second = true;
-            requested_extensions.push_back(extension.first.c_str());
-        }
-    }
+    if (!vulkan_initializer.create_instance("Vulkan Playground", 1, "None", 1, extensions)) return false;
 
-    instance_create_info.setPEnabledExtensionNames(requested_extensions);
-    
+    VkSurfaceKHR sdl_surface;
+    SDL_Vulkan_CreateSurface(window, instance, &sdl_surface);
+    surface = static_cast<vk::SurfaceKHR>(sdl_surface);
 
-    #ifndef NDEBUG // Add Vulkan Layers for debug builds
+    if (!vulkan_initializer.choose_gpu(device_extensions, surface)) return false;
+    gpu_properties = vulkan_initializer.get_gpu_properties();
 
-        std::vector<const char*> validation_layers = { "VK_LAYER_KHRONOS_validation" };
+    if (!vulkan_initializer.create_device(device_extensions)) return false;
+    graphics_queue = device.getQueue(gpu_properties.graphics_present_queue_family, 0);
 
-        // Check layer availability
-
-        auto [eilp_result, supported_layers] = vk::enumerateInstanceLayerProperties();
-
-        if (eilp_result == vk::Result::eSuccess) {
-            for (int i=validation_layers.size()-1; i >= 0; --i) {
-                const char* requested_layer = validation_layers[i];
-                bool supported = false;
-                for (auto supported_layer : supported_layers) {
-                    if (strcmp(requested_layer, supported_layer.layerName) == 0) {
-                        supported = true;
-                        break;
-                    }
-                }
-                if (!supported) {
-                    std::cerr << "Unsupported layer: " << requested_layer << std::endl;
-                    validation_layers.erase(validation_layers.begin() + i);
-                }
-            }
-            instance_create_info.setPEnabledLayerNames(validation_layers);
-        } else {
-            std::cerr << "Unable to query suported layers: " << int(eilp_result) << ". No layers enabled." << std::endl;
-        }
-
-    #endif
-
-    // Create Instance
-
-    vk::Result ci_result;
-    std::tie(ci_result, instance) = vk::createInstance(instance_create_info);
-    CHECK_VK_RESULT_RF(ci_result, "Failed to create vulkan instance");
-
-    return true;
-}
-
-bool VulkanEngine::select_physical_device() {
-    auto [epd_result, physical_devices] = instance.enumeratePhysicalDevices();
-    CHECK_VK_RESULT_RF(epd_result, "Failed to query GPUs");
-
-    if (physical_devices.size() == 0) {
-        std::cerr << "Failed to find GPU." << std::endl;
-        return false;
-    }
-    
-    int best_score = -1;
-    for (auto& physical_device : physical_devices) {
-        vk_init::GPUProperties tmp(physical_device, device_extensions, surface);
-        if (tmp.score > best_score) {
-            chosen_gpu = physical_device;
-            gpu_properties = tmp;
-            best_score = tmp.score;
-        }
-    }
-    if (best_score < 0) {
-        chosen_gpu = nullptr;
-        std::cerr << "No suitable GPU." << std::endl;
-        return false;
-    }
-    
-    return true;
-}
-
-bool VulkanEngine::create_logical_device() {
-    float queue_priorites = 1.0f;
-    std::array<vk::DeviceQueueCreateInfo, 1> device_queue_create_infos{{
-        {{}, graphics_queue_family, 1, &queue_priorites}
-    }};
-
-    // Warn about unsupported device extensions and update `device_extensions`
-    // so that supported extensions are `true` and unsupported extensions are
-    // `false`
-    for (auto& extension : device_extensions) {
-        extension.second = false;
-        for (auto rs_extension : gpu_properties.supported_requested_device_extensions) {
-            if (extension.first == rs_extension) {
-                extension.second = true;
-            }
-        }
-        if (!extension.second) {
-            std::cerr << "Unsupported device extension: " << extension.first << std::endl;
-        }
-    }
-
-    vk::PhysicalDeviceFeatures device_features({});
-
-    vk::DeviceCreateInfo device_create_info({}, device_queue_create_infos, {}, gpu_properties.supported_requested_device_extensions, &device_features);
-
-    vk::Result cd_result;
-    std::tie(cd_result, device) = chosen_gpu.createDevice(device_create_info);
-    CHECK_VK_RESULT_RF(cd_result, "Failed to create logical device");
-
-    graphics_queue = device.getQueue(graphics_queue_family, 0);
+    if (!init_swapchain()) return false;
+    if (!init_default_renderpass()) return false;
+    if (!init_framebuffers()) return false;
+    if (!init_commands()) return false;
+    if (!init_sync_structures()) return false;
 
     return true;
 }
@@ -322,6 +230,103 @@ bool VulkanEngine::init_swapchain() {
     return true;
 }
 
+bool VulkanEngine::init_default_renderpass() {
+    std::array<vk::AttachmentDescription, 1> attachment_descriptions{
+        vk::AttachmentDescription( // Color Attachment
+            {}, // flags
+            surface_format.format,
+            vk::SampleCountFlagBits::e1,
+            vk::AttachmentLoadOp::eClear, // Load op
+            vk::AttachmentStoreOp::eStore, // Store op
+            vk::AttachmentLoadOp::eDontCare, // Stencil load op
+            vk::AttachmentStoreOp::eDontCare, // Stencil store op
+            vk::ImageLayout::eUndefined, // Initial layout
+            vk::ImageLayout::ePresentSrcKHR // Final layout
+        )
+    };
+
+    std::array<vk::AttachmentReference, 1> attachment_refs{
+        {{0, vk::ImageLayout::eColorAttachmentOptimal}}
+    };
+    std::array<vk::SubpassDescription, 1> subpass_descriptions{
+        vk::SubpassDescription(
+            {}, // flags
+            vk::PipelineBindPoint::eGraphics,
+            {}, // input attachments count
+            attachment_refs,
+            {}, // resolve attachments
+            {}, // depth stencil attachment
+            {} // preserve attachments
+        )
+    };
+
+    vk::RenderPassCreateInfo render_pass_info(
+        {}, // flags
+        attachment_descriptions,
+        subpass_descriptions,
+        {} // Subpass dependencies
+    );
+
+    vk::Result crp_result;
+    std::tie(crp_result, render_pass) = device.createRenderPass(render_pass_info);
+    CHECK_VK_RESULT_RF(crp_result, "Failed to create render pass");
+    
+    return true;
+}
+
+bool VulkanEngine::init_framebuffers() {
+    vk::Result gsci_result;
+    std::tie(gsci_result, swap_chain_images) = device.getSwapchainImagesKHR(swap_chain);
+    CHECK_VK_RESULT_RF(gsci_result, "Failed to retrieve swap chain images");
+    image_count = swap_chain_images.size();
+
+    swap_chain_image_views.resize(image_count);
+    vk::ImageViewCreateInfo image_view_create_info(
+        {}, // flags
+        {}, // image (set later)
+        vk::ImageViewType::e2D,
+        surface_format.format,
+        vk::ComponentMapping(
+            vk::ComponentSwizzle::eIdentity,
+            vk::ComponentSwizzle::eIdentity,
+            vk::ComponentSwizzle::eIdentity,
+            vk::ComponentSwizzle::eIdentity
+        ),
+        vk::ImageSubresourceRange(
+            vk::ImageAspectFlagBits::eColor,
+            0, // baseMipLevel
+            1, // levelCount
+            0, // baseArrayLayer
+            1 // layerCount
+        )
+    );
+    for (uint32_t i=0; i<image_count; ++i) {
+        image_view_create_info.image = swap_chain_images[i];
+        vk::Result civ_result;
+        std::tie(civ_result, swap_chain_image_views[i]) = device.createImageView(image_view_create_info);
+        CHECK_VK_RESULT_RF(civ_result, "Failed to create image view");
+    }
+
+    framebuffers.resize(image_count);
+    vk::FramebufferCreateInfo fb_create_info(
+        {}, // flags
+        render_pass,
+        {}, // image view(s) (set later)
+        window_extent.width,
+        window_extent.height,
+        1 // layers
+    );
+    for (uint32_t i=0; i<image_count; ++i) {
+        fb_create_info.attachmentCount = 1;
+        fb_create_info.pAttachments = &swap_chain_image_views[i];
+        vk::Result cf_result;
+        std::tie(cf_result, framebuffers[i]) = device.createFramebuffer(fb_create_info);
+        CHECK_VK_RESULT_RF(cf_result, "Failed to create framebuffer");
+    }
+
+    return true;
+}
+
 bool VulkanEngine::init_commands() {
     vk::CommandPoolCreateInfo command_pool_create_info(
         vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
@@ -342,7 +347,70 @@ bool VulkanEngine::init_commands() {
     return true;
 }
 
+bool VulkanEngine::init_sync_structures() {
+    vk::FenceCreateInfo fence_create_info(vk::FenceCreateFlagBits::eSignaled);
+    vk::Result cf_result;
+    std::tie(cf_result, render_fence) = device.createFence(fence_create_info);
+    CHECK_VK_RESULT_RF(cf_result, "Failed to create render fence");
+
+    vk::SemaphoreCreateInfo semaphore_create_info{};
+    vk::Result cs_result;
+    std::tie(cs_result, render_semaphore) = device.createSemaphore(semaphore_create_info);
+    CHECK_VK_RESULT_RF(cs_result, "Failed to create render semaphore");
+    std::tie(cs_result, present_semaphore) = device.createSemaphore(semaphore_create_info);
+    CHECK_VK_RESULT_RF(cs_result, "Failed to create present semaphore");
+
+    return true;
+}
+
 
 void VulkanEngine::draw() {
+    uint64_t timeout{ 1'000'000'000 };
 
+    // Wait until the GPU has finished rendering the last frame
+    CHECK_VK_RESULT( device.waitForFences(1, &render_fence, VK_TRUE, timeout), "Failed to wait for render fence");
+	CHECK_VK_RESULT( device.resetFences(1, &render_fence), "Failed to reset render fence");
+
+    // Get next swap chain image
+    auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, present_semaphore, {});
+    CHECK_VK_RESULT(ani_result, "Failed to aquire next swap chain image");
+
+    // Reset the command buffer
+    CHECK_VK_RESULT(main_command_buffer.reset(), "Failed to reset main cmd buffer");
+
+    // Begin command buffer
+    vk::CommandBufferBeginInfo cmd_begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    CHECK_VK_RESULT(main_command_buffer.begin(cmd_begin_info), "Failed to begin cmd buffer");
+
+    uint64_t period = 2048;
+    float flash = (frame_number%period) / float(period);
+    std::array<vk::ClearValue, 1> clear_values{
+        {vk::ClearColorValue{std::array<float,4>{0.0f,0.0f,flash,0.0f}}}
+    };
+
+    vk::RenderPassBeginInfo render_pass_begin_info(
+        render_pass,
+        framebuffers[sw_ch_image_index],
+        vk::Rect2D({0,0}, window_extent),
+        clear_values
+    );
+
+    main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
+
+
+
+    main_command_buffer.endRenderPass();
+
+    // End command buffer
+    CHECK_VK_RESULT(main_command_buffer.end(), "Failed to end command buffer");
+
+    vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+    vk::SubmitInfo submit_info(1, &present_semaphore, &wait_stage, 1, &main_command_buffer, 1, &render_semaphore);
+    CHECK_VK_RESULT(graphics_queue.submit(1, &submit_info, render_fence), "Failed to submit graphics_queue");
+
+    vk::PresentInfoKHR present_info(1, &render_semaphore, 1, &swap_chain, &sw_ch_image_index);
+    CHECK_VK_RESULT(graphics_queue.presentKHR(present_info), "Failed to present graphics queue");
+
+    ++frame_number;
 }
