@@ -3,19 +3,6 @@
 
 #include "vk_types.hpp"
 
-#define CHECK_VK_RESULT(vk_result, msg) do { \
-        if ((vk_result) != vk::Result::eSuccess) { \
-            std::cerr << (msg) << ": " << int(vk_result) << std::endl; \
-        } \
-    } while (0)
-
-#define CHECK_VK_RESULT_RF(vk_result, msg) do { \
-        if ((vk_result) != vk::Result::eSuccess) { \
-            std::cerr << (msg) << ": " << int(vk_result) << std::endl; \
-            return false; \
-        } \
-    } while (0)
-
 namespace vk_init {
     // Returns every `const char*` in both `requested` and `supported`.
     // The ptr will point to the the keys in `requested`.

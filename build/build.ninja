@@ -147,6 +147,13 @@ build src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o: CXX_COMPILER__vulk
   OBJECT_DIR = src/CMakeFiles/vulkan-engine.dir
   OBJECT_FILE_DIR = src/CMakeFiles/vulkan-engine.dir
 
+build src/CMakeFiles/vulkan-engine.dir/pipeline_builder.cpp.o: CXX_COMPILER__vulkan-engine_Debug ../src/pipeline_builder.cpp || cmake_object_order_depends_target_vulkan-engine
+  DEP_FILE = src/CMakeFiles/vulkan-engine.dir/pipeline_builder.cpp.o.d
+  FLAGS = -g -std=gnu++17
+  INCLUDES = -I../include -isystem /usr/include/SDL2
+  OBJECT_DIR = src/CMakeFiles/vulkan-engine.dir
+  OBJECT_FILE_DIR = src/CMakeFiles/vulkan-engine.dir
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target vulkan-engine
@@ -155,7 +162,7 @@ build src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o: CXX_COMPILER__vulk
 #############################################
 # Link the executable ../bin/vulkan-engine
 
-build ../bin/vulkan-engine: CXX_EXECUTABLE_LINKER__vulkan-engine_Debug src/CMakeFiles/vulkan-engine.dir/main.cpp.o src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o | /usr/lib/libSDL2-2.0.so.0.12.0 /lib/libvulkan.so || Shaders
+build ../bin/vulkan-engine: CXX_EXECUTABLE_LINKER__vulkan-engine_Debug src/CMakeFiles/vulkan-engine.dir/main.cpp.o src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o src/CMakeFiles/vulkan-engine.dir/pipeline_builder.cpp.o | /usr/lib/libSDL2-2.0.so.0.12.0 /lib/libvulkan.so || Shaders
   FLAGS = -g
   LINK_FLAGS = -rdynamic
   LINK_LIBRARIES = /usr/lib/libSDL2-2.0.so.0.12.0  /lib/libvulkan.so  -lm  -ldl  -ldbus-1  -libus-1.0  -lgio-2.0  -lgobject-2.0  -lglib-2.0  -lunwind  -lunwind-generic  -lrt  -Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now  -Wl,--no-undefined  -pthread

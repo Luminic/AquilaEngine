@@ -4,6 +4,9 @@
 #include <SDL2/SDL_vulkan.h>
 
 #include <iostream>
+#include <fstream>
+
+#include "pipeline_builder.hpp"
 
 VulkanEngine::VulkanEngine() {}
 
@@ -153,6 +156,8 @@ bool VulkanEngine::init_vulkan() {
     if (!init_commands()) return false;
     if (!init_sync_structures()) return false;
 
+    if (!init_pipelines()) return false;
+
     return true;
 }
 
@@ -225,7 +230,7 @@ bool VulkanEngine::init_swapchain() {
 
     vk::Result csc_result;
     std::tie(csc_result, swap_chain) = device.createSwapchainKHR(swap_chain_create_info);
-    CHECK_VK_RESULT_RF(csc_result, "Failed to create swap chain");
+    CHECK_VK_RESULT_R(csc_result, false, "Failed to create swap chain");
 
     return true;
 }
@@ -269,7 +274,7 @@ bool VulkanEngine::init_default_renderpass() {
 
     vk::Result crp_result;
     std::tie(crp_result, render_pass) = device.createRenderPass(render_pass_info);
-    CHECK_VK_RESULT_RF(crp_result, "Failed to create render pass");
+    CHECK_VK_RESULT_R(crp_result, false, "Failed to create render pass");
     
     return true;
 }
@@ -277,7 +282,7 @@ bool VulkanEngine::init_default_renderpass() {
 bool VulkanEngine::init_framebuffers() {
     vk::Result gsci_result;
     std::tie(gsci_result, swap_chain_images) = device.getSwapchainImagesKHR(swap_chain);
-    CHECK_VK_RESULT_RF(gsci_result, "Failed to retrieve swap chain images");
+    CHECK_VK_RESULT_R(gsci_result, false, "Failed to retrieve swap chain images");
     image_count = swap_chain_images.size();
 
     swap_chain_image_views.resize(image_count);
@@ -304,7 +309,7 @@ bool VulkanEngine::init_framebuffers() {
         image_view_create_info.image = swap_chain_images[i];
         vk::Result civ_result;
         std::tie(civ_result, swap_chain_image_views[i]) = device.createImageView(image_view_create_info);
-        CHECK_VK_RESULT_RF(civ_result, "Failed to create image view");
+        CHECK_VK_RESULT_R(civ_result, false, "Failed to create image view");
     }
 
     framebuffers.resize(image_count);
@@ -321,7 +326,7 @@ bool VulkanEngine::init_framebuffers() {
         fb_create_info.pAttachments = &swap_chain_image_views[i];
         vk::Result cf_result;
         std::tie(cf_result, framebuffers[i]) = device.createFramebuffer(fb_create_info);
-        CHECK_VK_RESULT_RF(cf_result, "Failed to create framebuffer");
+        CHECK_VK_RESULT_R(cf_result, false, "Failed to create framebuffer");
     }
 
     return true;
@@ -335,12 +340,12 @@ bool VulkanEngine::init_commands() {
 
     vk::Result ccp_result;
     std::tie(ccp_result, command_pool) = device.createCommandPool(command_pool_create_info);
-    CHECK_VK_RESULT_RF(ccp_result, "Failed to create command pool");
+    CHECK_VK_RESULT_R(ccp_result, false, "Failed to create command pool");
 
     vk::CommandBufferAllocateInfo cmd_buff_alloc_info(command_pool, vk::CommandBufferLevel::ePrimary, 1);
 
     auto[acb_result, cmd_buffs] = device.allocateCommandBuffers(cmd_buff_alloc_info);
-    CHECK_VK_RESULT_RF(acb_result, "Failed to allocate command buffer(s)");
+    CHECK_VK_RESULT_R(acb_result, false, "Failed to allocate command buffer(s)");
 
     main_command_buffer = cmd_buffs[0];
 
@@ -351,16 +356,90 @@ bool VulkanEngine::init_sync_structures() {
     vk::FenceCreateInfo fence_create_info(vk::FenceCreateFlagBits::eSignaled);
     vk::Result cf_result;
     std::tie(cf_result, render_fence) = device.createFence(fence_create_info);
-    CHECK_VK_RESULT_RF(cf_result, "Failed to create render fence");
+    CHECK_VK_RESULT_R(cf_result, false, "Failed to create render fence");
 
     vk::SemaphoreCreateInfo semaphore_create_info{};
     vk::Result cs_result;
     std::tie(cs_result, render_semaphore) = device.createSemaphore(semaphore_create_info);
-    CHECK_VK_RESULT_RF(cs_result, "Failed to create render semaphore");
+    CHECK_VK_RESULT_R(cs_result, false, "Failed to create render semaphore");
     std::tie(cs_result, present_semaphore) = device.createSemaphore(semaphore_create_info);
-    CHECK_VK_RESULT_RF(cs_result, "Failed to create present semaphore");
+    CHECK_VK_RESULT_R(cs_result, false, "Failed to create present semaphore");
 
     return true;
+}
+
+bool VulkanEngine::init_pipelines() {
+    vk::ShaderModule triangle_vert_shader = load_shader_module("../shaders/color.vert.spv");
+    if (!triangle_vert_shader) {
+        std::cerr << "Failed to load triangle_vert_shader; Aborting." << std::endl;
+        return false;
+    }
+    vk::ShaderModule triangle_frag_shader = load_shader_module("../shaders/color.frag.spv");
+    if (!triangle_frag_shader) {
+        std::cerr << "Failed to load triangle_frag_shader; Aborting." << std::endl;
+        return false;
+    }
+
+    vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, {}, {});
+    vk::Result cpl_result;
+    std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
+    CHECK_VK_RESULT_R(cpl_result, false, "Failed to create pipeline layout");
+
+    triangle_pipeline = PipelineBuilder()
+        .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, triangle_vert_shader, "main"})
+        .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, triangle_frag_shader, "main"})
+        .set_vertex_input({{}, 0, nullptr, 0, nullptr})
+        .set_input_assembly({{}, vk::PrimitiveTopology::eTriangleList, VK_FALSE})
+        .add_viewport({0.0f, 0.0f, float(window_extent.width), float(window_extent.height), 0.0f, 1.0f})
+        .add_scissor({{0, 0}, window_extent})
+        .set_rasterization_state({
+            {}, // flags
+            VK_FALSE, // depth clamp
+            VK_FALSE, // rasterizer discard
+            vk::PolygonMode::eFill,
+            vk::CullModeFlagBits::eNone,
+            vk::FrontFace::eClockwise,
+            VK_FALSE, // depth bias enable
+            0.0f, // depth bias const factor
+            0.0f, // depth bias clamp
+            0.0f, // depth bias slope factor
+            1.0f // line width
+        })
+        .add_color_blend_attachment(PipelineBuilder::default_color_blend_attachment())
+        .set_multisample_state(PipelineBuilder::default_multisample_state_one_sample())
+        .set_pipeline_layout(triangle_pipeline_layout)
+        .build_pipeline(device, render_pass);
+    
+    if (!triangle_pipeline)
+        return false;
+    return true;
+}
+
+
+vk::ShaderModule VulkanEngine::load_shader_module(const char* file_path) {
+    // Read file into buffer
+    std::ifstream file(file_path, std::ios::ate | std::ios::binary);
+
+	if (!file.is_open()) {
+        std::cerr << "Failed to open shader file " << file_path << std::endl;
+		return nullptr;
+	}
+
+    size_t file_size = (size_t) file.tellg();
+    std::vector<uint32_t> buffer(file_size / sizeof(uint32_t));
+
+    file.seekg(0);
+    file.read((char*)buffer.data(), file_size);
+    file.close();
+
+    // Create the Vulkan shader module
+
+    vk::ShaderModuleCreateInfo shader_module_create_info({}, buffer);
+    
+    auto [csm_result, shader_module] = device.createShaderModule(shader_module_create_info);
+    CHECK_VK_RESULT_R(csm_result, nullptr, "Failed to load shader module");
+
+    return shader_module;
 }
 
 
@@ -397,6 +476,9 @@ void VulkanEngine::draw() {
 
     main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
+
+    main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
+    main_command_buffer.draw(3, 1, 0, 0);
 
 
     main_command_buffer.endRenderPass();

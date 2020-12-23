@@ -5,6 +5,7 @@ add_executable(vulkan-engine
     main.cpp
     vk_engine.cpp
     vk_initializers.cpp
+    pipeline_builder.cpp
 )
 
 target_include_directories(vulkan-engine PRIVATE ${PROJECT_SOURCE_DIR}/include)

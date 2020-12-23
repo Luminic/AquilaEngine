@@ -199,7 +199,7 @@ namespace vk_init {
 
         vk::Result ci_result;
         std::tie(ci_result, instance) = vk::createInstance(instance_create_info);
-        CHECK_VK_RESULT_RF(ci_result, "Failed to create vulkan instance");
+        CHECK_VK_RESULT_R(ci_result, false, "Failed to create vulkan instance");
 
         return true;
     }
@@ -209,7 +209,7 @@ namespace vk_init {
         vk::SurfaceKHR compatible_surface
     ) {
         auto [epd_result, physical_devices] = instance.enumeratePhysicalDevices();
-        CHECK_VK_RESULT_RF(epd_result, "Failed to query GPUs");
+        CHECK_VK_RESULT_R(epd_result, false, "Failed to query GPUs");
 
         if (physical_devices.size() == 0) {
             std::cerr << "Failed to find GPU." << std::endl;
@@ -261,7 +261,7 @@ namespace vk_init {
 
         vk::Result cd_result;
         std::tie(cd_result, device) = gpu.createDevice(device_create_info);
-        CHECK_VK_RESULT_RF(cd_result, "Failed to create logical device");
+        CHECK_VK_RESULT_R(cd_result, false, "Failed to create logical device");
 
         return true;
     }

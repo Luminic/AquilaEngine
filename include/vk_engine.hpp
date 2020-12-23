@@ -6,6 +6,7 @@
 
 #include <unordered_map>
 
+
 class VulkanEngine {
 public:
     VulkanEngine();
@@ -60,12 +61,20 @@ private:
     vk::Fence render_fence;
     vk::Semaphore present_semaphore, render_semaphore;
 
+    vk::PipelineLayout triangle_pipeline_layout;
+    vk::Pipeline triangle_pipeline;
+
     bool init_vulkan();
+
     bool init_swapchain();
     bool init_default_renderpass();
     bool init_framebuffers();
     bool init_commands();
     bool init_sync_structures();
+
+    bool init_pipelines();
+
+    vk::ShaderModule load_shader_module(const char* file_path);
 
     void draw();
 };
