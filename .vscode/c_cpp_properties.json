@@ -6,12 +6,16 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/include"
             ],
-            "defines": [],
+            "defines": [
+                "PROJECT_PATH = \"/home/l/C++/Vulkan/Vulkan-Engine\""
+            ],
             "compilerPath": "/usr/bin/g++",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "gcc-x64"
             // "configurationProvider": "ms-vscode.cmake-tools"
+            ,
+            "compilerArgs": []
         }
     ],
     "version": 4

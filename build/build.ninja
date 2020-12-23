@@ -127,6 +127,7 @@ build src/edit_cache: phony src/CMakeFiles/edit_cache.util
 build cmake_object_order_depends_target_vulkan-engine: phony || Shaders
 
 build src/CMakeFiles/vulkan-engine.dir/main.cpp.o: CXX_COMPILER__vulkan-engine_Debug ../src/main.cpp || cmake_object_order_depends_target_vulkan-engine
+  DEFINES = -DPROJECT_PATH=\"/home/l/C++/Vulkan/Vulkan-Engine\"
   DEP_FILE = src/CMakeFiles/vulkan-engine.dir/main.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I../include -isystem /usr/include/SDL2
@@ -134,6 +135,7 @@ build src/CMakeFiles/vulkan-engine.dir/main.cpp.o: CXX_COMPILER__vulkan-engine_D
   OBJECT_FILE_DIR = src/CMakeFiles/vulkan-engine.dir
 
 build src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o: CXX_COMPILER__vulkan-engine_Debug ../src/vk_engine.cpp || cmake_object_order_depends_target_vulkan-engine
+  DEFINES = -DPROJECT_PATH=\"/home/l/C++/Vulkan/Vulkan-Engine\"
   DEP_FILE = src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I../include -isystem /usr/include/SDL2
@@ -141,6 +143,7 @@ build src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o: CXX_COMPILER__vulkan-eng
   OBJECT_FILE_DIR = src/CMakeFiles/vulkan-engine.dir
 
 build src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o: CXX_COMPILER__vulkan-engine_Debug ../src/vk_initializers.cpp || cmake_object_order_depends_target_vulkan-engine
+  DEFINES = -DPROJECT_PATH=\"/home/l/C++/Vulkan/Vulkan-Engine\"
   DEP_FILE = src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I../include -isystem /usr/include/SDL2
@@ -148,6 +151,7 @@ build src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o: CXX_COMPILER__vulk
   OBJECT_FILE_DIR = src/CMakeFiles/vulkan-engine.dir
 
 build src/CMakeFiles/vulkan-engine.dir/pipeline_builder.cpp.o: CXX_COMPILER__vulkan-engine_Debug ../src/pipeline_builder.cpp || cmake_object_order_depends_target_vulkan-engine
+  DEFINES = -DPROJECT_PATH=\"/home/l/C++/Vulkan/Vulkan-Engine\"
   DEP_FILE = src/CMakeFiles/vulkan-engine.dir/pipeline_builder.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I../include -isystem /usr/include/SDL2

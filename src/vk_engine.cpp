@@ -369,12 +369,14 @@ bool VulkanEngine::init_sync_structures() {
 }
 
 bool VulkanEngine::init_pipelines() {
-    vk::ShaderModule triangle_vert_shader = load_shader_module("../shaders/color.vert.spv");
+    std::string proj_path(PROJECT_PATH);
+
+    vk::ShaderModule triangle_vert_shader = load_shader_module((proj_path + "/shaders/color.vert.spv").c_str());
     if (!triangle_vert_shader) {
         std::cerr << "Failed to load triangle_vert_shader; Aborting." << std::endl;
         return false;
     }
-    vk::ShaderModule triangle_frag_shader = load_shader_module("../shaders/color.frag.spv");
+    vk::ShaderModule triangle_frag_shader = load_shader_module((proj_path + "/shaders/color.frag.spv").c_str());
     if (!triangle_frag_shader) {
         std::cerr << "Failed to load triangle_frag_shader; Aborting." << std::endl;
         return false;

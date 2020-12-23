@@ -3,6 +3,8 @@
 int main(int argc, char* argv[]) {
 	VulkanEngine engine;
 
+	std::cout << PROJECT_PATH << '\n';
+
 	if (!engine.init())
 		return 1;
 	

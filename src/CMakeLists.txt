@@ -8,6 +8,7 @@ add_executable(vulkan-engine
     pipeline_builder.cpp
 )
 
+target_compile_definitions(vulkan-engine PRIVATE PROJECT_PATH="${PROJECT_SOURCE_DIR}")
 target_include_directories(vulkan-engine PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 target_link_libraries(vulkan-engine

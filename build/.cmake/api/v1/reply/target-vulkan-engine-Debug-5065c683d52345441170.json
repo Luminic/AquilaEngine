@@ -13,6 +13,7 @@
 			"add_executable",
 			"target_link_libraries",
 			"add_dependencies",
+			"target_compile_definitions",
 			"target_include_directories"
 		],
 		"files" : 
@@ -34,7 +35,7 @@
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 13,
+				"line" : 14,
 				"parent" : 0
 			},
 			{
@@ -51,6 +52,12 @@
 				"file" : 0,
 				"line" : 11,
 				"parent" : 0
+			},
+			{
+				"command" : 4,
+				"file" : 0,
+				"line" : 12,
+				"parent" : 0
 			}
 		]
 	},
@@ -66,10 +73,17 @@
 					"fragment" : "-std=gnu++17"
 				}
 			],
-			"includes" : 
+			"defines" : 
 			[
 				{
 					"backtrace" : 5,
+					"define" : "PROJECT_PATH=\"/home/l/C++/Vulkan/Vulkan-Engine\""
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 6,
 					"path" : "/home/l/C++/Vulkan/Vulkan-Engine/include"
 				},
 				{
