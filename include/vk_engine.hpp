@@ -74,8 +74,6 @@ private:
 
     bool init_pipelines();
 
-    vk::ShaderModule load_shader_module(const char* file_path);
-
     void draw();
 };
 

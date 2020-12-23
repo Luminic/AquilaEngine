@@ -76,6 +76,14 @@ void VulkanEngine::cleanup() {
         if (device)
             CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
 
+        // Destroy pipeline
+        if (triangle_pipeline) device.destroyPipeline(triangle_pipeline);
+        triangle_pipeline = nullptr;
+
+        if (triangle_pipeline_layout) device.destroyPipelineLayout(triangle_pipeline_layout);
+        triangle_pipeline_layout = nullptr;
+
+        // Destroy sync structures
         if (render_fence) device.destroyFence(render_fence);
         render_fence = nullptr;
 
@@ -85,25 +93,30 @@ void VulkanEngine::cleanup() {
         if (present_semaphore) device.destroySemaphore(present_semaphore);
         present_semaphore = nullptr;
 
+        // Destroy commands
         if (main_command_buffer) device.freeCommandBuffers(command_pool, main_command_buffer);
         main_command_buffer = nullptr;
 
         if (command_pool) device.destroyCommandPool(command_pool);
         command_pool = nullptr;
 
+        // Destroy framebuffers
         for (auto& framebuffer : framebuffers) { device.destroyFramebuffer(framebuffer); }
         framebuffers.clear();
 
         for (auto& image_view : swap_chain_image_views) { device.destroyImageView(image_view); }
         swap_chain_image_views.clear();
-        swap_chain_images.clear();
+        swap_chain_images.clear(); // Swap chain images are created by the swapchain so I don't need to delete them myself
 
+        // Destroy default render pass
         if (render_pass) device.destroyRenderPass(render_pass);
         render_pass = nullptr;
 
+        // Destroy swap chain
         if (swap_chain) device.destroySwapchainKHR(swap_chain);
         swap_chain = nullptr;
 
+        // Destroy Vulkan objects
         if (surface) instance.destroy(surface);
         surface = nullptr;
 
@@ -371,12 +384,17 @@ bool VulkanEngine::init_sync_structures() {
 bool VulkanEngine::init_pipelines() {
     std::string proj_path(PROJECT_PATH);
 
-    vk::ShaderModule triangle_vert_shader = load_shader_module((proj_path + "/shaders/color.vert.spv").c_str());
+    vk::UniqueShaderModule triangle_vert_shader = vk_init::load_shader_module_unique(
+        (proj_path + "/shaders/color.vert.spv").c_str(), device
+    );
     if (!triangle_vert_shader) {
         std::cerr << "Failed to load triangle_vert_shader; Aborting." << std::endl;
         return false;
     }
-    vk::ShaderModule triangle_frag_shader = load_shader_module((proj_path + "/shaders/color.frag.spv").c_str());
+
+    vk::UniqueShaderModule triangle_frag_shader = vk_init::load_shader_module_unique(
+        (proj_path + "/shaders/color.frag.spv").c_str(), device
+    );
     if (!triangle_frag_shader) {
         std::cerr << "Failed to load triangle_frag_shader; Aborting." << std::endl;
         return false;
@@ -387,9 +405,9 @@ bool VulkanEngine::init_pipelines() {
     std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
     CHECK_VK_RESULT_R(cpl_result, false, "Failed to create pipeline layout");
 
-    triangle_pipeline = PipelineBuilder()
-        .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, triangle_vert_shader, "main"})
-        .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, triangle_frag_shader, "main"})
+    PipelineBuilder pipeline_builder = PipelineBuilder()
+        .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, *triangle_vert_shader, "main"})
+        .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, *triangle_frag_shader, "main"})
         .set_vertex_input({{}, 0, nullptr, 0, nullptr})
         .set_input_assembly({{}, vk::PrimitiveTopology::eTriangleList, VK_FALSE})
         .add_viewport({0.0f, 0.0f, float(window_extent.width), float(window_extent.height), 0.0f, 1.0f})
@@ -409,41 +427,14 @@ bool VulkanEngine::init_pipelines() {
         })
         .add_color_blend_attachment(PipelineBuilder::default_color_blend_attachment())
         .set_multisample_state(PipelineBuilder::default_multisample_state_one_sample())
-        .set_pipeline_layout(triangle_pipeline_layout)
-        .build_pipeline(device, render_pass);
+        .set_pipeline_layout(triangle_pipeline_layout);
+
+    triangle_pipeline = pipeline_builder.build_pipeline(device, render_pass);
     
     if (!triangle_pipeline)
         return false;
     return true;
 }
-
-
-vk::ShaderModule VulkanEngine::load_shader_module(const char* file_path) {
-    // Read file into buffer
-    std::ifstream file(file_path, std::ios::ate | std::ios::binary);
-
-	if (!file.is_open()) {
-        std::cerr << "Failed to open shader file " << file_path << std::endl;
-		return nullptr;
-	}
-
-    size_t file_size = (size_t) file.tellg();
-    std::vector<uint32_t> buffer(file_size / sizeof(uint32_t));
-
-    file.seekg(0);
-    file.read((char*)buffer.data(), file_size);
-    file.close();
-
-    // Create the Vulkan shader module
-
-    vk::ShaderModuleCreateInfo shader_module_create_info({}, buffer);
-    
-    auto [csm_result, shader_module] = device.createShaderModule(shader_module_create_info);
-    CHECK_VK_RESULT_R(csm_result, nullptr, "Failed to load shader module");
-
-    return shader_module;
-}
-
 
 void VulkanEngine::draw() {
     uint64_t timeout{ 1'000'000'000 };

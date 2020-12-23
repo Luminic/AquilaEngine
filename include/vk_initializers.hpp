@@ -89,6 +89,9 @@ namespace vk_init {
         GPUProperties gpu_properties;
     };
 
+
+    vk::ShaderModule load_shader_module(const char* file_path, vk::Device device);
+    vk::UniqueShaderModule load_shader_module_unique(const char* file_path, vk::Device device);
 }
 
 #endif
