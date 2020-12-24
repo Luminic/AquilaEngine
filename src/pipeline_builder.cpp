@@ -33,6 +33,11 @@ PipelineBuilder& PipelineBuilder::add_viewport(const vk::Viewport& viewport) {
     return *this;
 }
 
+PipelineBuilder& PipelineBuilder::set_viewport_count(uint32_t viewport_count) {
+    viewports.resize(viewport_count);
+    return *this;
+}
+
 
 PipelineBuilder& PipelineBuilder::set_scissors(const std::vector<vk::Rect2D>& scissors) {
     this->scissors = scissors;
@@ -41,6 +46,11 @@ PipelineBuilder& PipelineBuilder::set_scissors(const std::vector<vk::Rect2D>& sc
 
 PipelineBuilder& PipelineBuilder::add_scissor(const vk::Rect2D& scissor) {
     scissors.push_back(scissor);
+    return *this;
+}
+
+PipelineBuilder& PipelineBuilder::set_scissor_count(uint32_t scissor_count) {
+    scissors.resize(scissor_count);
     return *this;
 }
 
@@ -92,6 +102,11 @@ vk::PipelineMultisampleStateCreateInfo PipelineBuilder::default_multisample_stat
     );
 }
 
+PipelineBuilder& PipelineBuilder::set_dynamic_state(const vk::PipelineDynamicStateCreateInfo& dynamic_state) {
+    this->dynamic_state = dynamic_state;
+    return *this;
+}
+
 PipelineBuilder& PipelineBuilder::set_pipeline_layout(const vk::PipelineLayout& pipeline_layout) {
     this->pipeline_layout = pipeline_layout;
     return *this;
@@ -119,7 +134,7 @@ vk::Pipeline PipelineBuilder::build_pipeline(vk::Device device, vk::RenderPass r
         &multisample_state,
         nullptr, // depth stencil state
         &color_blending,
-        nullptr, // dynamic state
+        &dynamic_state,
         pipeline_layout,
         render_pass,
         0, // subpass

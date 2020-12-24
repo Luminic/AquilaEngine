@@ -42,17 +42,23 @@ namespace vk_init {
         present_modes(present_modes) {}
     
     SwapChainSupportDetails::SwapChainSupportDetails(vk::PhysicalDevice gpu, vk::SurfaceKHR surface) {
+        update(gpu, surface);
+    }
+
+    bool SwapChainSupportDetails::update(vk::PhysicalDevice gpu, vk::SurfaceKHR surface) {
         vk::Result gsc_result;
         std::tie(gsc_result, capabilities) = gpu.getSurfaceCapabilitiesKHR(surface);
-        CHECK_VK_RESULT(gsc_result, "Failed to query GPU surface capabilities");
+        CHECK_VK_RESULT_R(gsc_result, false, "Failed to query GPU surface capabilities");
         
         vk::Result gsfs_result;
         std::tie(gsfs_result, formats) = gpu.getSurfaceFormatsKHR(surface);
-        CHECK_VK_RESULT(gsfs_result, "Failed to query GPU surface formats");
+        CHECK_VK_RESULT_R(gsfs_result, false, "Failed to query GPU surface formats");
 
         vk::Result gspms_result;
         std::tie(gspms_result, present_modes) = gpu.getSurfacePresentModesKHR(surface);
-        CHECK_VK_RESULT(gspms_result, "Failed to query GPU surface present modes");
+        CHECK_VK_RESULT_R(gspms_result, false, "Failed to query GPU surface present modes");
+
+        return true;
     }
 
     GPUProperties::GPUProperties(

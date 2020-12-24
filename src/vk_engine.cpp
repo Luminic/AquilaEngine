@@ -20,7 +20,7 @@ bool VulkanEngine::init() {
     initialized = true;
 
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
+    SDL_WindowFlags window_flags = SDL_WindowFlags(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
     window = SDL_CreateWindow(
         "Vulkan Engine",
@@ -36,7 +36,7 @@ bool VulkanEngine::init() {
         return false;
     }
 
-    if (!init_vulkan()) return false;
+    if (!init_vulkan_resources()) return false;
 
     return true;
 }
@@ -76,6 +76,8 @@ void VulkanEngine::cleanup() {
         if (device)
             CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
 
+        cleanup_swapchain_resources();
+
         // Destroy pipeline
         if (triangle_pipeline) device.destroyPipeline(triangle_pipeline);
         triangle_pipeline = nullptr;
@@ -83,38 +85,13 @@ void VulkanEngine::cleanup() {
         if (triangle_pipeline_layout) device.destroyPipelineLayout(triangle_pipeline_layout);
         triangle_pipeline_layout = nullptr;
 
-        // Destroy sync structures
-        if (render_fence) device.destroyFence(render_fence);
-        render_fence = nullptr;
-
-        if (render_semaphore) device.destroySemaphore(render_semaphore);
-        render_semaphore = nullptr;
-        
-        if (present_semaphore) device.destroySemaphore(present_semaphore);
-        present_semaphore = nullptr;
-
-        // Destroy commands
-        if (main_command_buffer) device.freeCommandBuffers(command_pool, main_command_buffer);
-        main_command_buffer = nullptr;
-
+        // Destroy command pool
         if (command_pool) device.destroyCommandPool(command_pool);
         command_pool = nullptr;
-
-        // Destroy framebuffers
-        for (auto& framebuffer : framebuffers) { device.destroyFramebuffer(framebuffer); }
-        framebuffers.clear();
-
-        for (auto& image_view : swap_chain_image_views) { device.destroyImageView(image_view); }
-        swap_chain_image_views.clear();
-        swap_chain_images.clear(); // Swap chain images are created by the swapchain so I don't need to delete them myself
 
         // Destroy default render pass
         if (render_pass) device.destroyRenderPass(render_pass);
         render_pass = nullptr;
-
-        // Destroy swap chain
-        if (swap_chain) device.destroySwapchainKHR(swap_chain);
-        swap_chain = nullptr;
 
         // Destroy Vulkan objects
         if (surface) instance.destroy(surface);
@@ -133,7 +110,7 @@ void VulkanEngine::cleanup() {
     }
 }
 
-bool VulkanEngine::init_vulkan() {
+bool VulkanEngine::init_vulkan_resources() {
     // Get extensions
 
     unsigned int sdl_extension_count = 0;
@@ -163,18 +140,71 @@ bool VulkanEngine::init_vulkan() {
     if (!vulkan_initializer.create_device(device_extensions)) return false;
     graphics_queue = device.getQueue(gpu_properties.graphics_present_queue_family, 0);
 
-    if (!init_swapchain()) return false;
+    if (!init_command_pool()) return false;
+    if (!choose_surface_format()) return false;
     if (!init_default_renderpass()) return false;
-    if (!init_framebuffers()) return false;
-    if (!init_commands()) return false;
-    if (!init_sync_structures()) return false;
+    if (!init_swapchain_resources()) return false;
 
     if (!init_pipelines()) return false;
 
     return true;
 }
 
-bool VulkanEngine::init_swapchain() {
+bool VulkanEngine::init_swapchain_resources() {
+    if (!init_command_buffers()) return false;
+    if (!init_swapchain()) return false;
+    if (!init_framebuffers()) return false;
+    if (!init_sync_structures()) return false;
+
+    return true;
+}
+
+void VulkanEngine::cleanup_swapchain_resources() {
+    // Make sure everything has finished
+    if (device)
+        CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
+
+    // Destroy sync structures
+    if (render_fence) device.destroyFence(render_fence);
+    render_fence = nullptr;
+
+    if (render_semaphore) device.destroySemaphore(render_semaphore);
+    render_semaphore = nullptr;
+    
+    if (present_semaphore) device.destroySemaphore(present_semaphore);
+    present_semaphore = nullptr;
+
+    // Destroy command buffers
+    if (main_command_buffer) device.freeCommandBuffers(command_pool, main_command_buffer);
+    main_command_buffer = nullptr;
+
+    // Destroy framebuffers
+    for (auto& framebuffer : framebuffers) { device.destroyFramebuffer(framebuffer); }
+    framebuffers.clear();
+
+    for (auto& image_view : swap_chain_image_views) { device.destroyImageView(image_view); }
+    swap_chain_image_views.clear();
+    swap_chain_images.clear(); // Swap chain images are created by the swapchain so I don't need to delete them myself
+
+    // Destroy swap chain
+    if (swap_chain) device.destroySwapchainKHR(swap_chain);
+    swap_chain = nullptr;
+}
+
+bool VulkanEngine::init_command_pool() {
+    vk::CommandPoolCreateInfo command_pool_create_info(
+        vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+        graphics_queue_family
+    );
+
+    vk::Result ccp_result;
+    std::tie(ccp_result, command_pool) = device.createCommandPool(command_pool_create_info);
+    CHECK_VK_RESULT_R(ccp_result, false, "Failed to create command pool");
+
+    return true;
+}
+
+bool VulkanEngine::choose_surface_format() {
     vk_init::SwapChainSupportDetails& sw_ch_support = gpu_properties.sw_ch_support;
 
     // Should be checked for in `rate_gpu` and ineligible GPUs should not
@@ -193,57 +223,6 @@ bool VulkanEngine::init_swapchain() {
             surface_format = available_format;
         }
     }
-
-    // Get present mode
-    present_mode = vk::PresentModeKHR::eFifo; // Always supported
-    for (auto& available_present_mode : sw_ch_support.present_modes) {
-        if (available_present_mode == vk::PresentModeKHR::eMailbox) {
-            present_mode = available_present_mode;
-        }
-    }
-
-    // Get extent
-    if (sw_ch_support.capabilities.currentExtent.width != UINT32_MAX) {
-        window_extent = sw_ch_support.capabilities.currentExtent;
-    } else {
-        int width, height;
-        SDL_Vulkan_GetDrawableSize(window, &width, &height);
-        window_extent = vk::Extent2D(
-            std::clamp(uint32_t(width), sw_ch_support.capabilities.minImageExtent.width, sw_ch_support.capabilities.maxImageExtent.width),
-            std::clamp(uint32_t(height), sw_ch_support.capabilities.minImageExtent.height, sw_ch_support.capabilities.maxImageExtent.height)
-        );
-    }
-
-    // Figure out number of swapchain images
-    uint32_t min_image_count = 3;
-    if (sw_ch_support.capabilities.maxImageCount == 0) {
-        min_image_count = std::max(min_image_count, sw_ch_support.capabilities.minImageCount);
-    } else {
-        min_image_count = std::clamp(min_image_count, sw_ch_support.capabilities.minImageCount, sw_ch_support.capabilities.maxImageCount);
-    }
-
-    // Actually create swapchain
-    vk::SwapchainCreateInfoKHR swap_chain_create_info(
-        {}, // flags
-        surface,
-        min_image_count,
-        surface_format.format,
-        surface_format.colorSpace,
-        window_extent,
-        1, // image array layers
-        vk::ImageUsageFlagBits::eColorAttachment,
-        vk::SharingMode::eExclusive,
-        {}, // queue family array
-        sw_ch_support.capabilities.currentTransform, // pre-transform
-        vk::CompositeAlphaFlagBitsKHR::eOpaque,
-        present_mode,
-        VK_TRUE, // clipped
-        {} // old swapchain
-    );
-
-    vk::Result csc_result;
-    std::tie(csc_result, swap_chain) = device.createSwapchainKHR(swap_chain_create_info);
-    CHECK_VK_RESULT_R(csc_result, false, "Failed to create swap chain");
 
     return true;
 }
@@ -289,6 +268,90 @@ bool VulkanEngine::init_default_renderpass() {
     std::tie(crp_result, render_pass) = device.createRenderPass(render_pass_info);
     CHECK_VK_RESULT_R(crp_result, false, "Failed to create render pass");
     
+    return true;
+}
+
+bool VulkanEngine::init_command_buffers() {
+    vk::CommandBufferAllocateInfo cmd_buff_alloc_info(command_pool, vk::CommandBufferLevel::ePrimary, 1);
+
+    auto[acb_result, cmd_buffs] = device.allocateCommandBuffers(cmd_buff_alloc_info);
+    CHECK_VK_RESULT_R(acb_result, false, "Failed to allocate command buffer(s)");
+
+    main_command_buffer = cmd_buffs[0];
+
+    return true;
+}
+
+bool VulkanEngine::init_swapchain() {
+    vk_init::SwapChainSupportDetails& sw_ch_support = gpu_properties.sw_ch_support;
+
+    // Make sure the swap chain support details are up to date
+    sw_ch_support.update(chosen_gpu, surface);
+
+    // Make sure surface format is still supported
+    bool surface_format_supported = false;
+    for (auto& available_surface_format : sw_ch_support.formats) {
+        if (surface_format == available_surface_format) {
+            surface_format_supported = true;
+            break;
+        }
+    }
+    if (!surface_format_supported) {
+        std::cerr << "Surface format no longer supported; aborting." << std::endl;
+        return false;
+    }
+
+    // Get present mode
+    present_mode = vk::PresentModeKHR::eFifo; // Always supported
+    for (auto& available_present_mode : sw_ch_support.present_modes) {
+        if (available_present_mode == vk::PresentModeKHR::eMailbox) {
+            present_mode = available_present_mode;
+        }
+    }
+
+    // Get extent
+    if (sw_ch_support.capabilities.currentExtent.width == UINT32_MAX) {
+        window_extent = sw_ch_support.capabilities.currentExtent;
+    } else {
+        int width, height;
+        SDL_Vulkan_GetDrawableSize(window, &width, &height);
+        window_extent = vk::Extent2D(
+            std::clamp(uint32_t(width), sw_ch_support.capabilities.minImageExtent.width, sw_ch_support.capabilities.maxImageExtent.width),
+            std::clamp(uint32_t(height), sw_ch_support.capabilities.minImageExtent.height, sw_ch_support.capabilities.maxImageExtent.height)
+        );
+    }
+
+    // Figure out number of swapchain images
+    uint32_t min_image_count = 3;
+    if (sw_ch_support.capabilities.maxImageCount == 0) {
+        min_image_count = std::max(min_image_count, sw_ch_support.capabilities.minImageCount);
+    } else {
+        min_image_count = std::clamp(min_image_count, sw_ch_support.capabilities.minImageCount, sw_ch_support.capabilities.maxImageCount);
+    }
+
+    // Actually create swapchain
+    vk::SwapchainCreateInfoKHR swap_chain_create_info(
+        {}, // flags
+        surface,
+        min_image_count,
+        surface_format.format,
+        surface_format.colorSpace,
+        window_extent,
+        1, // image array layers
+        vk::ImageUsageFlagBits::eColorAttachment,
+        vk::SharingMode::eExclusive,
+        {}, // queue family array
+        sw_ch_support.capabilities.currentTransform, // pre-transform
+        vk::CompositeAlphaFlagBitsKHR::eOpaque,
+        present_mode,
+        VK_TRUE, // clipped
+        {} // old swapchain
+    );
+
+    vk::Result csc_result;
+    std::tie(csc_result, swap_chain) = device.createSwapchainKHR(swap_chain_create_info);
+    CHECK_VK_RESULT_R(csc_result, false, "Failed to create swap chain");
+
     return true;
 }
 
@@ -345,26 +408,6 @@ bool VulkanEngine::init_framebuffers() {
     return true;
 }
 
-bool VulkanEngine::init_commands() {
-    vk::CommandPoolCreateInfo command_pool_create_info(
-        vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-        graphics_queue_family
-    );
-
-    vk::Result ccp_result;
-    std::tie(ccp_result, command_pool) = device.createCommandPool(command_pool_create_info);
-    CHECK_VK_RESULT_R(ccp_result, false, "Failed to create command pool");
-
-    vk::CommandBufferAllocateInfo cmd_buff_alloc_info(command_pool, vk::CommandBufferLevel::ePrimary, 1);
-
-    auto[acb_result, cmd_buffs] = device.allocateCommandBuffers(cmd_buff_alloc_info);
-    CHECK_VK_RESULT_R(acb_result, false, "Failed to allocate command buffer(s)");
-
-    main_command_buffer = cmd_buffs[0];
-
-    return true;
-}
-
 bool VulkanEngine::init_sync_structures() {
     vk::FenceCreateInfo fence_create_info(vk::FenceCreateFlagBits::eSignaled);
     vk::Result cf_result;
@@ -405,13 +448,15 @@ bool VulkanEngine::init_pipelines() {
     std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
     CHECK_VK_RESULT_R(cpl_result, false, "Failed to create pipeline layout");
 
+    std::array<vk::DynamicState, 2> dynamic_states({vk::DynamicState::eViewport, vk::DynamicState::eScissor});
+
     PipelineBuilder pipeline_builder = PipelineBuilder()
         .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, *triangle_vert_shader, "main"})
         .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, *triangle_frag_shader, "main"})
         .set_vertex_input({{}, 0, nullptr, 0, nullptr})
         .set_input_assembly({{}, vk::PrimitiveTopology::eTriangleList, VK_FALSE})
-        .add_viewport({0.0f, 0.0f, float(window_extent.width), float(window_extent.height), 0.0f, 1.0f})
-        .add_scissor({{0, 0}, window_extent})
+        .set_viewport_count(1)
+        .set_scissor_count(1)
         .set_rasterization_state({
             {}, // flags
             VK_FALSE, // depth clamp
@@ -427,6 +472,7 @@ bool VulkanEngine::init_pipelines() {
         })
         .add_color_blend_attachment(PipelineBuilder::default_color_blend_attachment())
         .set_multisample_state(PipelineBuilder::default_multisample_state_one_sample())
+        .set_dynamic_state({{}, dynamic_states})
         .set_pipeline_layout(triangle_pipeline_layout);
 
     triangle_pipeline = pipeline_builder.build_pipeline(device, render_pass);
@@ -445,7 +491,14 @@ void VulkanEngine::draw() {
 
     // Get next swap chain image
     auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, present_semaphore, {});
-    CHECK_VK_RESULT(ani_result, "Failed to aquire next swap chain image");
+    if (ani_result == vk::Result::eSuboptimalKHR || ani_result == vk::Result::eErrorOutOfDateKHR) {
+        cleanup_swapchain_resources();
+        if (!init_swapchain_resources())
+            std::cerr << "Failed to recreate swapchain when resizing window." << std::endl;
+        return;
+    } else {
+        CHECK_VK_RESULT(ani_result, "Failed to aquire next swap chain image");
+    }
 
     // Reset the command buffer
     CHECK_VK_RESULT(main_command_buffer.reset(), "Failed to reset main cmd buffer");
@@ -453,6 +506,10 @@ void VulkanEngine::draw() {
     // Begin command buffer
     vk::CommandBufferBeginInfo cmd_begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     CHECK_VK_RESULT(main_command_buffer.begin(cmd_begin_info), "Failed to begin cmd buffer");
+
+    // Set the dynamic state
+    main_command_buffer.setViewport(0, {{0.0f, 0.0f, float(window_extent.width), float(window_extent.height), 0.0f, 1.0f}});
+    main_command_buffer.setScissor(0, {{{0, 0}, window_extent}});
 
     uint64_t period = 2048;
     float flash = (frame_number%period) / float(period);
@@ -469,7 +526,7 @@ void VulkanEngine::draw() {
 
     main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
-
+    // Actual rendering
     main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
     main_command_buffer.draw(3, 1, 0, 0);
 
@@ -485,7 +542,14 @@ void VulkanEngine::draw() {
     CHECK_VK_RESULT(graphics_queue.submit(1, &submit_info, render_fence), "Failed to submit graphics_queue");
 
     vk::PresentInfoKHR present_info(1, &render_semaphore, 1, &swap_chain, &sw_ch_image_index);
-    CHECK_VK_RESULT(graphics_queue.presentKHR(present_info), "Failed to present graphics queue");
+    vk::Result p_result = graphics_queue.presentKHR(present_info);
+    if (p_result == vk::Result::eSuboptimalKHR || p_result == vk::Result::eErrorOutOfDateKHR) {
+        cleanup_swapchain_resources();
+        if (!init_swapchain_resources())
+            std::cerr << "Failed to recreate swapchain when resizing window." << std::endl;
+    } else {
+        CHECK_VK_RESULT(p_result, "Failed to present graphics queue");
+    }
 
     ++frame_number;
 }

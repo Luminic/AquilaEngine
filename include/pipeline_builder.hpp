@@ -11,9 +11,13 @@ public:
 
     PipelineBuilder& set_viewports(const std::vector<vk::Viewport>& viewports);
     PipelineBuilder& add_viewport(const vk::Viewport& viewport);
+    // For use with dynamic state
+    PipelineBuilder& set_viewport_count(uint32_t viewport_count);
 
     PipelineBuilder& set_scissors(const std::vector<vk::Rect2D>& scissors);
     PipelineBuilder& add_scissor(const vk::Rect2D& scissor);
+    // For use with dynamic state
+    PipelineBuilder& set_scissor_count(uint32_t scissor_count);
 
     PipelineBuilder& set_rasterization_state(const vk::PipelineRasterizationStateCreateInfo& rasterization_state);
 
@@ -23,6 +27,8 @@ public:
 
     PipelineBuilder& set_multisample_state(const vk::PipelineMultisampleStateCreateInfo& multisample_state);
     static vk::PipelineMultisampleStateCreateInfo default_multisample_state_one_sample();
+
+    PipelineBuilder& set_dynamic_state(const vk::PipelineDynamicStateCreateInfo& dynamic_state);
 
     PipelineBuilder& set_pipeline_layout(const vk::PipelineLayout& pipeline_layout);
 
@@ -38,5 +44,6 @@ private:
     vk::PipelineRasterizationStateCreateInfo rasterization_state;
     std::vector<vk::PipelineColorBlendAttachmentState> color_blend_attachments;
     vk::PipelineMultisampleStateCreateInfo multisample_state;
+    vk::PipelineDynamicStateCreateInfo dynamic_state;
     vk::PipelineLayout pipeline_layout;
 };

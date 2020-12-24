@@ -29,6 +29,8 @@ namespace vk_init {
         );
 
         SwapChainSupportDetails(vk::PhysicalDevice gpu, vk::SurfaceKHR surface);
+
+        bool update(vk::PhysicalDevice gpu, vk::SurfaceKHR surface);
     };
 
 

@@ -64,15 +64,20 @@ private:
     vk::PipelineLayout triangle_pipeline_layout;
     vk::Pipeline triangle_pipeline;
 
-    bool init_vulkan();
+    bool init_vulkan_resources();
+    bool init_swapchain_resources();
+    void cleanup_swapchain_resources();
 
-    bool init_swapchain();
+    bool init_command_pool();
+    bool choose_surface_format();
     bool init_default_renderpass();
+    bool init_pipelines();
+
+    bool init_command_buffers();
+    bool init_swapchain();
     bool init_framebuffers();
-    bool init_commands();
     bool init_sync_structures();
 
-    bool init_pipelines();
 
     void draw();
 };

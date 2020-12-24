@@ -71,5 +71,11 @@
         "valarray": "cpp",
         "variant": "cpp"
     },
-    "C_Cpp.errorSquiggles": "Enabled"
+    "C_Cpp.errorSquiggles": "Enabled",
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/build/**": true
+    },
+    "telemetry.enableTelemetry": false
 }
