@@ -5,8 +5,9 @@ int main(int argc, char* argv[]) {
 
 	std::cout << PROJECT_PATH << '\n';
 
-	if (!engine.init())
+	if (engine.init() != VulkanEngine::InitializationState::Initialized) {
 		return 1;
+	}
 	
 	engine.run();
 

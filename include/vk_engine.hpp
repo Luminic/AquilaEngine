@@ -12,21 +12,35 @@ public:
     VulkanEngine();
     ~VulkanEngine();
 
+    enum class InitializationState {
+        Uninitialized,
+        FailedVulkanObjectsInitialization,
+        VulkanObjectsInitialized,
+        FailedSwapChainInitialization,
+        Initialized // Swapchain initialized
+    };
+
     // Returns `true` if initialization succeeds and `false` otherwise
-    bool init();
+    InitializationState init();
     void run();
     void cleanup();
 
+    InitializationState get_initialization_state();
+
 private:
-    bool initialized{ false };
+    InitializationState initialization_state{ InitializationState::Uninitialized };
 	uint64_t frame_number{0};
 
+    // Updated in `init_swapchain`; should always be correct
 	vk::Extent2D window_extent{ 1700, 900 };
+
+    // Initialized in `init`
 
     struct SDL_Window* window{ nullptr };
 
+    // Initialized in `init_vulkan_resources`
+
     vk::Instance instance;
-    // vk::DebugUtilsMessengerEXT debug_messenger;
     vk::SurfaceKHR surface;
     vk::PhysicalDevice chosen_gpu;
     vk::Device device;
@@ -39,32 +53,51 @@ private:
     
     vk_init::GPUProperties gpu_properties;
 
-    // This graphics queue family must also support present operations
-    // `UINT32_MAX` is a "Does not exist" value
     // Just an alias for `gpu_properties.graphics_present_queue_family`
     uint32_t& graphics_queue_family{ gpu_properties.graphics_present_queue_family };
     vk::Queue graphics_queue;
 
+    // Initialized in `init_command_pool`
+
+    vk::CommandPool command_pool;
+
+    // Initialized in `choose_surface_format`
+
     vk::SurfaceFormatKHR surface_format;
     vk::PresentModeKHR present_mode;
-    vk::SwapchainKHR swap_chain;
+
+    // Initialized in `init_default_renderpass`
 
     vk::RenderPass render_pass;
+
+    // Initialized in `init_pipelines`
+
+    vk::PipelineLayout triangle_pipeline_layout;
+    vk::Pipeline triangle_pipeline;
+
+    // Initialized in `init_command_buffers`
+
+    vk::CommandBuffer main_command_buffer;
+
+    // Initialized in `init_swapchain`
+
+    vk::SwapchainKHR swap_chain;
+
+    // Initialized in `init_framebuffers`
+
     uint32_t image_count{0};
     std::vector<vk::Image> swap_chain_images;
 	std::vector<vk::ImageView> swap_chain_image_views;
     std::vector<vk::Framebuffer> framebuffers;
 
-    vk::CommandPool command_pool;
-    vk::CommandBuffer main_command_buffer;
+    // Initialized in `init_sync_structures`
 
     vk::Fence render_fence;
     vk::Semaphore present_semaphore, render_semaphore;
 
-    vk::PipelineLayout triangle_pipeline_layout;
-    vk::Pipeline triangle_pipeline;
 
     bool init_vulkan_resources();
+    void cleanup_vulkan_resources();
     bool init_swapchain_resources();
     void cleanup_swapchain_resources();
 

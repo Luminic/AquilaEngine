@@ -28,3 +28,14 @@
 2	4578	1608775535464905487	src/CMakeFiles/vulkan-engine.dir/vk_initializers.cpp.o	f45a159a69bbc74c
 2	5120	1608775536008234182	src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o	75dbbac12f99019c
 5120	5326	1608775536214899084	../bin/vulkan-engine	ce0864a728f5d070
+1	3349	1608775968017587996	src/CMakeFiles/vulkan-engine.dir/main.cpp.o	41cf75b7ed5ff8c1
+1	4863	1608775969530906618	src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o	75dbbac12f99019c
+4863	5079	1608775969744237877	../bin/vulkan-engine	ce0864a728f5d070
+1	3323	1608776701226822229	src/CMakeFiles/vulkan-engine.dir/main.cpp.o	41cf75b7ed5ff8c1
+1	4905	1608776702806805801	src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o	75dbbac12f99019c
+4905	5117	1608776703020136916	../bin/vulkan-engine	ce0864a728f5d070
+1	4937	1608786081296336686	src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o	75dbbac12f99019c
+0	3181	1608786141465699874	src/CMakeFiles/vulkan-engine.dir/main.cpp.o	41cf75b7ed5ff8c1
+3181	3391	1608786141672364346	../bin/vulkan-engine	ce0864a728f5d070
+0	4926	1608786238611329313	src/CMakeFiles/vulkan-engine.dir/vk_engine.cpp.o	75dbbac12f99019c
+4926	5138	1608786238824660358	../bin/vulkan-engine	ce0864a728f5d070

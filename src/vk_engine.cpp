@@ -14,11 +14,7 @@ VulkanEngine::~VulkanEngine() {
     cleanup(); // Just in case
 }
 
-
-bool VulkanEngine::init() {
-    std::cout << "init\n";
-    initialized = true;
-
+VulkanEngine::InitializationState VulkanEngine::init() {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_WindowFlags window_flags = SDL_WindowFlags(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
@@ -33,17 +29,15 @@ bool VulkanEngine::init() {
 
     if (!window) {
         std::cerr << "SDL window failed to initialze: " << SDL_GetError() << std::endl;
-        return false;
     }
 
-    if (!init_vulkan_resources()) return false;
+    if (!init_vulkan_resources()) initialization_state = InitializationState::FailedVulkanObjectsInitialization;
+    if (!init_swapchain_resources()) initialization_state = InitializationState::FailedSwapChainInitialization;
 
-    return true;
+    return initialization_state;
 }
 
 void VulkanEngine::run() {
-    std::cout << "run\n";
-
     SDL_Event event;
 	bool quit = false;
 
@@ -69,54 +63,28 @@ void VulkanEngine::run() {
 }
 
 void VulkanEngine::cleanup() {
-    if (initialized) {
-        std::cout << "cleanup\n";
+    cleanup_swapchain_resources();
+    cleanup_vulkan_resources();
 
-        // Make sure everything has finished
-        if (device)
-            CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
+    if (window) SDL_DestroyWindow(window);
+    window = nullptr;
+}
 
-        cleanup_swapchain_resources();
-
-        // Destroy pipeline
-        if (triangle_pipeline) device.destroyPipeline(triangle_pipeline);
-        triangle_pipeline = nullptr;
-
-        if (triangle_pipeline_layout) device.destroyPipelineLayout(triangle_pipeline_layout);
-        triangle_pipeline_layout = nullptr;
-
-        // Destroy command pool
-        if (command_pool) device.destroyCommandPool(command_pool);
-        command_pool = nullptr;
-
-        // Destroy default render pass
-        if (render_pass) device.destroyRenderPass(render_pass);
-        render_pass = nullptr;
-
-        // Destroy Vulkan objects
-        if (surface) instance.destroy(surface);
-        surface = nullptr;
-
-        if (device) device.destroy();
-        device = nullptr;
-
-        if (instance) instance.destroy();
-        instance = nullptr;
-
-        if (window) SDL_DestroyWindow(window);
-        window = nullptr;
-
-        initialized = false;
-    }
+VulkanEngine::InitializationState VulkanEngine::get_initialization_state() {
+    return initialization_state;
 }
 
 bool VulkanEngine::init_vulkan_resources() {
     // Get extensions
 
     unsigned int sdl_extension_count = 0;
-    if (!SDL_Vulkan_GetInstanceExtensions(window, &sdl_extension_count, nullptr)) return false;
+    if (!SDL_Vulkan_GetInstanceExtensions(window, &sdl_extension_count, nullptr)) {
+        std::cerr << "Failed to query SDL Vulkan extensions" << std::endl;
+        return false; }
     std::vector<const char*> sdl_extensions(sdl_extension_count);
-    if (!SDL_Vulkan_GetInstanceExtensions(window, &sdl_extension_count, sdl_extensions.data())) return false;
+    if (!SDL_Vulkan_GetInstanceExtensions(window, &sdl_extension_count, sdl_extensions.data())) {
+        std::cerr << "Failed to query SDL Vulkan extensions" << std::endl;
+        return false; }
 
     for (auto extension : sdl_extensions) {
         extensions[std::string(extension)] = true;
@@ -143,18 +111,64 @@ bool VulkanEngine::init_vulkan_resources() {
     if (!init_command_pool()) return false;
     if (!choose_surface_format()) return false;
     if (!init_default_renderpass()) return false;
-    if (!init_swapchain_resources()) return false;
-
     if (!init_pipelines()) return false;
+
+    initialization_state = InitializationState::VulkanObjectsInitialized;
 
     return true;
 }
 
+void VulkanEngine::cleanup_vulkan_resources() {
+    if (int(initialization_state) > int(InitializationState::VulkanObjectsInitialized)) {
+        std::cerr << "Vulkan resources can only be cleaned up if `initialization_state` is `InitializationState::VulkanObjectsInitialized` or before.\n";
+        std::cerr << "Current initialization state: " << int(initialization_state) << std::endl;
+        return;
+    }
+
+    // Make sure everything has finished
+    if (device)
+        CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
+
+    // Destroy pipeline
+    if (triangle_pipeline) device.destroyPipeline(triangle_pipeline);
+    triangle_pipeline = nullptr;
+
+    if (triangle_pipeline_layout) device.destroyPipelineLayout(triangle_pipeline_layout);
+    triangle_pipeline_layout = nullptr;
+
+    // Destroy command pool
+    if (command_pool) device.destroyCommandPool(command_pool);
+    command_pool = nullptr;
+
+    // Destroy default render pass
+    if (render_pass) device.destroyRenderPass(render_pass);
+    render_pass = nullptr;
+
+    // Destroy Vulkan objects
+    if (surface) instance.destroy(surface);
+    surface = nullptr;
+
+    if (device) device.destroy();
+    device = nullptr;
+
+    if (instance) instance.destroy();
+    instance = nullptr;
+
+    initialization_state = InitializationState::Uninitialized;
+}
+
 bool VulkanEngine::init_swapchain_resources() {
+    if (initialization_state != InitializationState::VulkanObjectsInitialized) {
+        std::cerr << "Initialization state must be " << int(InitializationState::VulkanObjectsInitialized) << " for `init_swapchain_resources`" << std::endl;
+        return false;
+    }
+
     if (!init_command_buffers()) return false;
     if (!init_swapchain()) return false;
     if (!init_framebuffers()) return false;
     if (!init_sync_structures()) return false;
+
+    initialization_state = InitializationState::Initialized;
 
     return true;
 }
@@ -189,6 +203,8 @@ void VulkanEngine::cleanup_swapchain_resources() {
     // Destroy swap chain
     if (swap_chain) device.destroySwapchainKHR(swap_chain);
     swap_chain = nullptr;
+
+    initialization_state = InitializationState::VulkanObjectsInitialized;
 }
 
 bool VulkanEngine::init_command_pool() {
@@ -268,6 +284,65 @@ bool VulkanEngine::init_default_renderpass() {
     std::tie(crp_result, render_pass) = device.createRenderPass(render_pass_info);
     CHECK_VK_RESULT_R(crp_result, false, "Failed to create render pass");
     
+    return true;
+}
+
+
+bool VulkanEngine::init_pipelines() {
+    std::string proj_path(PROJECT_PATH);
+
+    vk::UniqueShaderModule triangle_vert_shader = vk_init::load_shader_module_unique(
+        (proj_path + "/shaders/color.vert.spv").c_str(), device
+    );
+    if (!triangle_vert_shader) {
+        std::cerr << "Failed to load triangle_vert_shader; Aborting." << std::endl;
+        return false;
+    }
+
+    vk::UniqueShaderModule triangle_frag_shader = vk_init::load_shader_module_unique(
+        (proj_path + "/shaders/color.frag.spv").c_str(), device
+    );
+    if (!triangle_frag_shader) {
+        std::cerr << "Failed to load triangle_frag_shader; Aborting." << std::endl;
+        return false;
+    }
+
+    vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, {}, {});
+    vk::Result cpl_result;
+    std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
+    CHECK_VK_RESULT_R(cpl_result, false, "Failed to create pipeline layout");
+
+    std::array<vk::DynamicState, 2> dynamic_states({vk::DynamicState::eViewport, vk::DynamicState::eScissor});
+
+    PipelineBuilder pipeline_builder = PipelineBuilder()
+        .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, *triangle_vert_shader, "main"})
+        .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, *triangle_frag_shader, "main"})
+        .set_vertex_input({{}, 0, nullptr, 0, nullptr})
+        .set_input_assembly({{}, vk::PrimitiveTopology::eTriangleList, VK_FALSE})
+        .set_viewport_count(1)
+        .set_scissor_count(1)
+        .set_rasterization_state({
+            {}, // flags
+            VK_FALSE, // depth clamp
+            VK_FALSE, // rasterizer discard
+            vk::PolygonMode::eFill,
+            vk::CullModeFlagBits::eNone,
+            vk::FrontFace::eClockwise,
+            VK_FALSE, // depth bias enable
+            0.0f, // depth bias const factor
+            0.0f, // depth bias clamp
+            0.0f, // depth bias slope factor
+            1.0f // line width
+        })
+        .add_color_blend_attachment(PipelineBuilder::default_color_blend_attachment())
+        .set_multisample_state(PipelineBuilder::default_multisample_state_one_sample())
+        .set_dynamic_state({{}, dynamic_states})
+        .set_pipeline_layout(triangle_pipeline_layout);
+
+    triangle_pipeline = pipeline_builder.build_pipeline(device, render_pass);
+    
+    if (!triangle_pipeline)
+        return false;
     return true;
 }
 
@@ -424,65 +499,12 @@ bool VulkanEngine::init_sync_structures() {
     return true;
 }
 
-bool VulkanEngine::init_pipelines() {
-    std::string proj_path(PROJECT_PATH);
-
-    vk::UniqueShaderModule triangle_vert_shader = vk_init::load_shader_module_unique(
-        (proj_path + "/shaders/color.vert.spv").c_str(), device
-    );
-    if (!triangle_vert_shader) {
-        std::cerr << "Failed to load triangle_vert_shader; Aborting." << std::endl;
-        return false;
-    }
-
-    vk::UniqueShaderModule triangle_frag_shader = vk_init::load_shader_module_unique(
-        (proj_path + "/shaders/color.frag.spv").c_str(), device
-    );
-    if (!triangle_frag_shader) {
-        std::cerr << "Failed to load triangle_frag_shader; Aborting." << std::endl;
-        return false;
-    }
-
-    vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, {}, {});
-    vk::Result cpl_result;
-    std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
-    CHECK_VK_RESULT_R(cpl_result, false, "Failed to create pipeline layout");
-
-    std::array<vk::DynamicState, 2> dynamic_states({vk::DynamicState::eViewport, vk::DynamicState::eScissor});
-
-    PipelineBuilder pipeline_builder = PipelineBuilder()
-        .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, *triangle_vert_shader, "main"})
-        .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, *triangle_frag_shader, "main"})
-        .set_vertex_input({{}, 0, nullptr, 0, nullptr})
-        .set_input_assembly({{}, vk::PrimitiveTopology::eTriangleList, VK_FALSE})
-        .set_viewport_count(1)
-        .set_scissor_count(1)
-        .set_rasterization_state({
-            {}, // flags
-            VK_FALSE, // depth clamp
-            VK_FALSE, // rasterizer discard
-            vk::PolygonMode::eFill,
-            vk::CullModeFlagBits::eNone,
-            vk::FrontFace::eClockwise,
-            VK_FALSE, // depth bias enable
-            0.0f, // depth bias const factor
-            0.0f, // depth bias clamp
-            0.0f, // depth bias slope factor
-            1.0f // line width
-        })
-        .add_color_blend_attachment(PipelineBuilder::default_color_blend_attachment())
-        .set_multisample_state(PipelineBuilder::default_multisample_state_one_sample())
-        .set_dynamic_state({{}, dynamic_states})
-        .set_pipeline_layout(triangle_pipeline_layout);
-
-    triangle_pipeline = pipeline_builder.build_pipeline(device, render_pass);
-    
-    if (!triangle_pipeline)
-        return false;
-    return true;
-}
-
 void VulkanEngine::draw() {
+    if (initialization_state != InitializationState::Initialized) {
+        std::cerr << "`VulkanEngine` can only draw when `initialization_state` is `InitializationState::Initialized`" << std::endl;
+        return;
+    }
+
     uint64_t timeout{ 1'000'000'000 };
 
     // Wait until the GPU has finished rendering the last frame
