@@ -1,11 +1,20 @@
 #ifndef VK_ENGINE_HPP
 #define VK_ENGINE_HPP
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+
 #include "vk_types.hpp"
 #include "vk_initializers.hpp"
 #include "vk_mesh.hpp"
 
 #include <unordered_map>
+
+
+struct PushConstants {
+    glm::vec4 data;
+    glm::mat4 view_projection;
+};
 
 
 class VulkanEngine {

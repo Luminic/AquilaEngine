@@ -6,6 +6,8 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <iostream>
 #include <fstream>
 
@@ -329,7 +331,12 @@ bool VulkanEngine::init_pipelines() {
         return false;
     }
 
-    vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, {}, {});
+    std::array<vk::PushConstantRange, 1> push_constant_ranges = {
+        vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants))
+    };
+
+    vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, {}, push_constant_ranges);
+
     vk::Result cpl_result;
     std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
     CHECK_VK_RESULT_R(cpl_result, false, "Failed to create pipeline layout");
@@ -612,6 +619,25 @@ void VulkanEngine::draw() {
     // Actual rendering
     main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
     main_command_buffer.bindVertexBuffers(0, {triangle_mesh.vertex_buffer.buffer}, {0});
+
+    //make a model view matrix for rendering the object
+    //camera position
+    glm::vec3 camPos = { 0.0f, 0.0f, -2.0f };
+
+    glm::mat4 view = glm::translate(glm::mat4(1.0f), camPos);
+    //camera projection
+    glm::mat4 projection = glm::perspective(glm::radians(70.f), float(window_extent.width) / window_extent.height, 0.1f, 200.0f);
+    projection[1][1] *= -1;
+    //model rotation
+    glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frame_number * 0.4f), glm::vec3(0, 1, 0));
+
+    //calculate final mesh matrix
+    glm::mat4 mesh_matrix = projection * view * model;
+
+    PushConstants constants;
+    constants.view_projection = mesh_matrix;
+
+    main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
     main_command_buffer.draw(3, 1, 0, 0);
 
 
