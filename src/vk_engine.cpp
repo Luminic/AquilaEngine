@@ -3,6 +3,9 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+
 #include <iostream>
 #include <fstream>
 
@@ -34,6 +37,8 @@ VulkanEngine::InitializationState VulkanEngine::init() {
     if (!init_vulkan_resources()) initialization_state = InitializationState::FailedVulkanObjectsInitialization;
     if (!init_swapchain_resources()) initialization_state = InitializationState::FailedSwapChainInitialization;
 
+    load_meshes();
+
     return initialization_state;
 }
 
@@ -63,6 +68,13 @@ void VulkanEngine::run() {
 }
 
 void VulkanEngine::cleanup() {
+    if (device && allocator && triangle_mesh.vertex_buffer.buffer && triangle_mesh.vertex_buffer.allocation) {
+        CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
+        allocator.destroyBuffer(triangle_mesh.vertex_buffer.buffer, triangle_mesh.vertex_buffer.allocation);
+        triangle_mesh.vertex_buffer.buffer = nullptr;
+        triangle_mesh.vertex_buffer.allocation = nullptr;
+    }
+
     cleanup_swapchain_resources();
     cleanup_vulkan_resources();
 
@@ -108,6 +120,13 @@ bool VulkanEngine::init_vulkan_resources() {
     if (!vulkan_initializer.create_device(device_extensions)) return false;
     graphics_queue = device.getQueue(gpu_properties.graphics_present_queue_family, 0);
 
+    vma::AllocatorCreateInfo allocator_create_info({}, chosen_gpu, device);
+    allocator_create_info.instance = instance;
+    allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
+    vk::Result ca_result;
+    std::tie(ca_result, allocator) = vma::createAllocator(allocator_create_info);
+    CHECK_VK_RESULT_R(ca_result, false, "Failed to create vma allocator");
+
     if (!init_command_pool()) return false;
     if (!choose_surface_format()) return false;
     if (!init_default_renderpass()) return false;
@@ -145,6 +164,9 @@ void VulkanEngine::cleanup_vulkan_resources() {
     render_pass = nullptr;
 
     // Destroy Vulkan objects
+    if (allocator) allocator.destroy();
+    allocator = nullptr;
+
     if (surface) instance.destroy(surface);
     surface = nullptr;
 
@@ -314,10 +336,13 @@ bool VulkanEngine::init_pipelines() {
 
     std::array<vk::DynamicState, 2> dynamic_states({vk::DynamicState::eViewport, vk::DynamicState::eScissor});
 
+    VertexInputDescription vertex_input_description = Vertex::get_vertex_description();
+
     PipelineBuilder pipeline_builder = PipelineBuilder()
         .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, *triangle_vert_shader, "main"})
         .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, *triangle_frag_shader, "main"})
-        .set_vertex_input({{}, 0, nullptr, 0, nullptr})
+        // .set_vertex_input({{}, 0, nullptr, 0, nullptr})
+        .set_vertex_input({{}, vertex_input_description.bindings, vertex_input_description.attributes})
         .set_input_assembly({{}, vk::PrimitiveTopology::eTriangleList, VK_FALSE})
         .set_viewport_count(1)
         .set_scissor_count(1)
@@ -328,10 +353,7 @@ bool VulkanEngine::init_pipelines() {
             vk::PolygonMode::eFill,
             vk::CullModeFlagBits::eNone,
             vk::FrontFace::eClockwise,
-            VK_FALSE, // depth bias enable
-            0.0f, // depth bias const factor
-            0.0f, // depth bias clamp
-            0.0f, // depth bias slope factor
+            VK_FALSE, 0.0f, 0.0f, 0.0f, // depth bias info
             1.0f // line width
         })
         .add_color_blend_attachment(PipelineBuilder::default_color_blend_attachment())
@@ -499,6 +521,45 @@ bool VulkanEngine::init_sync_structures() {
     return true;
 }
 
+
+void VulkanEngine::load_meshes() {
+    triangle_mesh.vertices.resize(3);
+
+    triangle_mesh.vertices[0].position = { 1.0f, 1.0f, 0.0f, 1.0f};
+    triangle_mesh.vertices[1].position = {-1.0f, 1.0f, 0.0f, 1.0f};
+    triangle_mesh.vertices[2].position = { 0.0f,-1.0f, 0.0f, 1.0f};
+
+    triangle_mesh.vertices[0].color = {1.0f, 1.0f, 0.0f, 0.0f};
+    triangle_mesh.vertices[1].color = {1.0f, 0.0f, 1.0f, 0.0f};
+    triangle_mesh.vertices[2].color = {0.0f, 0.0f, 1.0f, 0.0f};
+
+    upload_mesh(triangle_mesh);
+}
+
+void VulkanEngine::upload_mesh(Mesh& mesh) {
+    // Allocate vertex buffer
+
+	vk::BufferCreateInfo buffer_create_info(
+        {},
+        mesh.vertices.size() * sizeof(Vertex),
+        vk::BufferUsageFlagBits::eVertexBuffer,
+        vk::SharingMode::eExclusive
+    );
+
+    vma::AllocationCreateInfo alloc_create_info({}, vma::MemoryUsage::eCpuToGpu);
+
+    auto[cb_result, buff_alloc] = allocator.createBuffer(buffer_create_info, alloc_create_info);
+    CHECK_VK_RESULT(cb_result, "Failed to create/allocate mesh vertex-buffer");
+    mesh.vertex_buffer = buff_alloc;
+
+    // Copy vertex data into vertex buffer
+
+    auto[mm_result, memory] = allocator.mapMemory(mesh.vertex_buffer.allocation);
+    memcpy(memory, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
+    allocator.unmapMemory(mesh.vertex_buffer.allocation);
+}
+
+
 void VulkanEngine::draw() {
     if (initialization_state != InitializationState::Initialized) {
         std::cerr << "`VulkanEngine` can only draw when `initialization_state` is `InitializationState::Initialized`" << std::endl;
@@ -550,6 +611,7 @@ void VulkanEngine::draw() {
 
     // Actual rendering
     main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
+    main_command_buffer.bindVertexBuffers(0, {triangle_mesh.vertex_buffer.buffer}, {0});
     main_command_buffer.draw(3, 1, 0, 0);
 
 

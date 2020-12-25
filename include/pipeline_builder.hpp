@@ -1,3 +1,6 @@
+#ifndef PIPELINE_BUILDER_HPP
+#define PIPELINE_BUILDER_HPP
+
 #include "vk_types.hpp"
 
 class PipelineBuilder {
@@ -47,3 +50,5 @@ private:
     vk::PipelineDynamicStateCreateInfo dynamic_state;
     vk::PipelineLayout pipeline_layout;
 };
+
+#endif

@@ -5,6 +5,8 @@
 #define VULKAN_HPP_ASSERT_ON_RESULT
 #include <vulkan/vulkan.hpp>
 
+#include <vk_mem_alloc.hpp>
+
 #include <iostream>
 
 #define CHECK_VK_RESULT(vk_result, msg) do { \
@@ -19,5 +21,15 @@
             return (return_if_err); \
         } \
     } while (0)
+
+struct AllocatedBuffer {
+    vk::Buffer buffer;
+    vma::Allocation allocation;
+
+    void operator=(const std::pair<vk::Buffer, vma::Allocation>& lhs) {
+        buffer = lhs.first;
+        allocation = lhs.second;
+    }
+};
 
 #endif

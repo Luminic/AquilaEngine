@@ -3,6 +3,7 @@
 
 #include "vk_types.hpp"
 #include "vk_initializers.hpp"
+#include "vk_mesh.hpp"
 
 #include <unordered_map>
 
@@ -56,6 +57,8 @@ private:
     // Just an alias for `gpu_properties.graphics_present_queue_family`
     uint32_t& graphics_queue_family{ gpu_properties.graphics_present_queue_family };
     vk::Queue graphics_queue;
+
+    vma::Allocator allocator;
 
     // Initialized in `init_command_pool`
 
@@ -111,6 +114,16 @@ private:
     bool init_framebuffers();
     bool init_sync_structures();
 
+
+    // Rendering code
+
+    Mesh triangle_mesh;
+
+    void load_meshes();
+    void upload_mesh(Mesh& mesh);
+
+
+    // Actual draw call
 
     void draw();
 };

@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/src",
-                "${workspaceFolder}/include"
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/third-party/vma"
             ],
             "defines": [
                 "PROJECT_PATH = \"/home/l/C++/Vulkan/Vulkan-Engine\""
