@@ -10,7 +10,13 @@
 
 #include "pipeline_builder.hpp"
 
-VulkanRenderEngine::VulkanRenderEngine() {}
+VulkanRenderEngine::VulkanRenderEngine() {
+    if (p_camera == nullptr) {
+        p_camera = &default_camera;
+        default_camera.position.z = -2.0f;
+        default_camera.render_window_size_changed(window_extent.width, window_extent.height);
+    }
+}
 
 VulkanRenderEngine::~VulkanRenderEngine() {}
 
@@ -24,17 +30,12 @@ void VulkanRenderEngine::run() {
                 case SDL_QUIT:
                     quit = true;
                     break;
-                case SDL_KEYDOWN:
-                    std::cout << event.key.keysym.sym << "\n";
-                    break;
-                case SDL_KEYUP:
-                    std::cout << event.key.keysym.sym << "\n";
-                    break;
                 default:
                     break;
             }
 		}
 
+        update();
 		draw();
 	}
 }
@@ -125,6 +126,13 @@ bool VulkanRenderEngine::init_pipelines() {
     return true;
 }
 
+bool VulkanRenderEngine::resize_window() {
+    if (!VulkanInitializationEngine::resize_window()) return false;
+    p_camera->render_window_size_changed(window_extent.width, window_extent.height);
+
+    return true;
+}
+
 void VulkanRenderEngine::load_meshes() {
     triangle_mesh.vertices.resize(3);
 
@@ -163,6 +171,22 @@ void VulkanRenderEngine::upload_mesh(Mesh& mesh) {
 }
 
 
+void VulkanRenderEngine::update() {
+    const uint8_t* keyboard_state = SDL_GetKeyboardState(nullptr);
+    if (keyboard_state[SDL_SCANCODE_UP]) {
+        default_camera.position.z += 0.01f;
+    }
+    if (keyboard_state[SDL_SCANCODE_DOWN]) {
+        default_camera.position.z -= 0.01f;
+    }
+    if (keyboard_state[SDL_SCANCODE_LEFT]) {
+        default_camera.position.x -= 0.01f;
+    }
+    if (keyboard_state[SDL_SCANCODE_RIGHT]) {
+        default_camera.position.x += 0.01f;
+    }
+}
+
 void VulkanRenderEngine::draw() {
     if (initialization_state != InitializationState::Initialized) {
         std::cerr << "`VulkanRenderEngine` can only draw when `initialization_state` is `InitializationState::Initialized`" << std::endl;
@@ -178,8 +202,7 @@ void VulkanRenderEngine::draw() {
     // Get next swap chain image
     auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, present_semaphore, {});
     if (ani_result == vk::Result::eSuboptimalKHR || ani_result == vk::Result::eErrorOutOfDateKHR) {
-        cleanup_swapchain_resources();
-        if (!init_swapchain_resources())
+        if (!resize_window())
             std::cerr << "Failed to recreate swapchain when resizing window." << std::endl;
         return;
     } else {
@@ -216,19 +239,10 @@ void VulkanRenderEngine::draw() {
     main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
     main_command_buffer.bindVertexBuffers(0, {triangle_mesh.vertex_buffer.buffer}, {0});
 
-    //make a model view matrix for rendering the object
-    //camera position
-    glm::vec3 camPos = { 0.0f, 0.0f, -2.0f };
 
-    glm::mat4 view = glm::translate(glm::mat4(1.0f), camPos);
-    //camera projection
-    glm::mat4 projection = glm::perspective(glm::radians(70.f), float(window_extent.width) / window_extent.height, 0.1f, 200.0f);
-    projection[1][1] *= -1;
-    //model rotation
-    glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frame_number * 0.4f), glm::vec3(0, 1, 0));
-
-    //calculate final mesh matrix
-    glm::mat4 mesh_matrix = projection * view * model;
+    p_camera->update();
+    glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(frame_number * 0.4f), glm::vec3(0, 1, 0));
+    glm::mat4 mesh_matrix = p_camera->get_projection_matrix() * p_camera->get_view_matrix() * model;
 
     PushConstants constants;
     constants.view_projection = mesh_matrix;
@@ -250,8 +264,7 @@ void VulkanRenderEngine::draw() {
     vk::PresentInfoKHR present_info(1, &render_semaphore, 1, &swap_chain, &sw_ch_image_index);
     vk::Result p_result = graphics_queue.presentKHR(present_info);
     if (p_result == vk::Result::eSuboptimalKHR || p_result == vk::Result::eErrorOutOfDateKHR) {
-        cleanup_swapchain_resources();
-        if (!init_swapchain_resources())
+        if (!resize_window())
             std::cerr << "Failed to recreate swapchain when resizing window." << std::endl;
     } else {
         CHECK_VK_RESULT(p_result, "Failed to present graphics queue");

@@ -192,6 +192,11 @@ bool VulkanInitializationEngine::init_render_resources() {return true;}
 
 void VulkanInitializationEngine::cleanup_render_resources() {}
 
+bool VulkanInitializationEngine::resize_window() {
+    cleanup_swapchain_resources();
+    return init_swapchain_resources();
+}
+
 bool VulkanInitializationEngine::init_command_pool() {
     vk::CommandPoolCreateInfo command_pool_create_info(
         vk::CommandPoolCreateFlagBits::eResetCommandBuffer,

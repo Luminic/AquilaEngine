@@ -12,7 +12,7 @@
 class VulkanInitializationEngine {
 public:
     VulkanInitializationEngine();
-    ~VulkanInitializationEngine();
+    virtual ~VulkanInitializationEngine();
 
     enum class InitializationState {
         Uninitialized,
@@ -100,6 +100,8 @@ protected:
     void cleanup_swapchain_resources();
     virtual bool init_render_resources();
     virtual void cleanup_render_resources();
+
+    virtual bool resize_window();
 
     bool init_command_pool();
     bool choose_surface_format();

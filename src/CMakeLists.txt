@@ -4,12 +4,12 @@ find_package(glm REQUIRED)
 
 add_executable(vulkan-engine
     main.cpp
-    # vk_engine.cpp
     vk_init_engine.cpp
     vk_render_engine.cpp
     vk_initializers.cpp
     pipeline_builder.cpp
     vk_mesh.cpp
+    camera.cpp
 )
 
 target_compile_definitions(vulkan-engine PRIVATE PROJECT_PATH="${PROJECT_SOURCE_DIR}")
