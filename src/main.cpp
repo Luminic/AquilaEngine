@@ -1,11 +1,11 @@
-#include "vk_engine.hpp"
+#include "vk_render_engine.hpp"
 
 int main(int argc, char* argv[]) {
-	VulkanEngine engine;
+	VulkanRenderEngine engine;
 
 	std::cout << PROJECT_PATH << '\n';
 
-	if (engine.init() != VulkanEngine::InitializationState::Initialized) {
+	if (engine.init() != VulkanRenderEngine::InitializationState::Initialized) {
 		return 1;
 	}
 	
