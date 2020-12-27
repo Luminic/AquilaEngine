@@ -24,6 +24,7 @@ namespace aq {
         virtual void update() override;
         virtual void render_window_size_changed(int width, int height) override;
 
+        // Returns a normalized vector pointing forwards
         virtual glm::vec3 get_forward_vector();
         virtual glm::mat4 get_view_matrix() override;
         virtual glm::mat4 get_projection_matrix() override;

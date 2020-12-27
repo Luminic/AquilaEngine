@@ -9,10 +9,11 @@ message(STATUS ${GLM_PATH})
 add_library(aquila-engine SHARED
     init_engine.cpp
     render_engine.cpp
+    aquila_engine.cpp
     vk_initializers.cpp
     pipeline_builder.cpp
     vk_mesh.cpp
-    camera.cpp
+    aq_camera.cpp
 )
 
 target_compile_definitions(aquila-engine PRIVATE PROJECT_PATH="${PROJECT_SOURCE_DIR}")

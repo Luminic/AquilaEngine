@@ -1,4 +1,4 @@
-#include "camera.hpp"
+#include "aq_camera.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -28,7 +28,7 @@ namespace aq {
 
         return glm::vec3(
             glm::sin(yaw) * glm::cos(pitch),
-            -glm::sin(pitch),
+            glm::sin(pitch),
             glm::cos(yaw) * glm::cos(pitch)
         );
     }

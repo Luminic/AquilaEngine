@@ -2,7 +2,7 @@
 #define VK_RENDER_ENGINE_HPP
 
 #include "init_engine.hpp"
-#include "camera.hpp"
+#include "aq_camera.hpp"
 #include "vk_mesh.hpp"
 
 namespace aq {
@@ -18,7 +18,10 @@ namespace aq {
         RenderEngine();
         virtual ~RenderEngine();
 
-        void run();
+        void update();
+        void draw(AbstractCamera* camera);
+
+        glm::ivec2 get_render_window_size();
 
     protected:
         virtual bool init_render_resources() override;
@@ -27,9 +30,6 @@ namespace aq {
         bool init_pipelines();
         vk::PipelineLayout triangle_pipeline_layout;
         vk::Pipeline triangle_pipeline;
-
-        AbstractCamera* p_camera = nullptr;
-        DefaultCamera default_camera;
 
         virtual bool resize_window() override; // Calls inherited `resize_window` method from `InitializationEngine`
 
@@ -40,10 +40,8 @@ namespace aq {
 
         void upload_mesh(Mesh& mesh);
 
-        // Actual draw call
+        // Misc resources
 
-        void update();
-        void draw();
         uint64_t frame_number{0};
     };
 

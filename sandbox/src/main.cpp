@@ -1,15 +1,9 @@
-#include <render_engine.hpp>
+#include "gameplay_engine.hpp"
+
 
 int main(int argc, char* argv[]) {
-	aq::RenderEngine engine;
-
-	if (engine.init() != aq::RenderEngine::InitializationState::Initialized) {
-		return 1;
-	}
-	
-	engine.run();
-
-	engine.cleanup();
+	GameplayEngine gameplay_engine{};
+	gameplay_engine.run();
 
 	return 0;
 }
