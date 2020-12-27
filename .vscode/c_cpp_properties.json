@@ -3,9 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/src",
-                "${workspaceFolder}/include",
-                "${workspaceFolder}/third-party/vma"
+                "${workspaceFolder}/aquila-engine/src",
+                "${workspaceFolder}/aquila-engine/include",
+                "${workspaceFolder}/aquila-engine/third-party/vma"
             ],
             "defines": [
                 "PROJECT_PATH = \"/home/l/C++/Vulkan/Vulkan-Engine\""
