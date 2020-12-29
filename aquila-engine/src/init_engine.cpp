@@ -91,6 +91,10 @@ namespace aq {
         VkSurfaceKHR sdl_surface;
         SDL_Vulkan_CreateSurface(window, instance, &sdl_surface);
         surface = static_cast<vk::SurfaceKHR>(sdl_surface);
+        deletion_queue.push_function([this]() {
+            if (surface) instance.destroy(surface);
+            surface = nullptr;
+        });
 
         if (!vulkan_initializer.choose_gpu(device_extensions, surface)) return false;
         gpu_properties = vulkan_initializer.get_gpu_properties();
@@ -104,6 +108,10 @@ namespace aq {
         vk::Result ca_result;
         std::tie(ca_result, allocator) = vma::createAllocator(allocator_create_info);
         CHECK_VK_RESULT_R(ca_result, false, "Failed to create vma allocator");
+        deletion_queue.push_function([this]() {
+            if (allocator) allocator.destroy();
+            allocator = nullptr;
+        });
 
         if (!init_command_pool()) return false;
         if (!choose_surface_format()) return false;
@@ -121,24 +129,7 @@ namespace aq {
             return;
         }
 
-        // Make sure everything has finished
-        if (device)
-            CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
-
-        // Destroy command pool
-        if (command_pool) device.destroyCommandPool(command_pool);
-        command_pool = nullptr;
-
-        // Destroy default render pass
-        if (render_pass) device.destroyRenderPass(render_pass);
-        render_pass = nullptr;
-
-        // Destroy Vulkan objects
-        if (allocator) allocator.destroy();
-        allocator = nullptr;
-
-        if (surface) instance.destroy(surface);
-        surface = nullptr;
+        deletion_queue.flush();
 
         if (device) device.destroy();
         device = nullptr;
@@ -167,34 +158,9 @@ namespace aq {
 
     void InitializationEngine::cleanup_swapchain_resources() {
         // Make sure everything has finished
-        if (device)
-            CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
-
-        // Destroy sync structures
-        if (render_fence) device.destroyFence(render_fence);
-        render_fence = nullptr;
-
-        if (render_semaphore) device.destroySemaphore(render_semaphore);
-        render_semaphore = nullptr;
+        wait_idle();
         
-        if (present_semaphore) device.destroySemaphore(present_semaphore);
-        present_semaphore = nullptr;
-
-        // Destroy command buffers
-        if (main_command_buffer) device.freeCommandBuffers(command_pool, main_command_buffer);
-        main_command_buffer = nullptr;
-
-        // Destroy framebuffers
-        for (auto& framebuffer : framebuffers) { device.destroyFramebuffer(framebuffer); }
-        framebuffers.clear();
-
-        for (auto& image_view : swap_chain_image_views) { device.destroyImageView(image_view); }
-        swap_chain_image_views.clear();
-        swap_chain_images.clear(); // Swap chain images are created by the swapchain so I don't need to delete them myself
-
-        // Destroy swap chain
-        if (swap_chain) device.destroySwapchainKHR(swap_chain);
-        swap_chain = nullptr;
+        swap_chain_deletion_queue.flush();
 
         initialization_state = InitializationState::VulkanObjectsInitialized;
     }
@@ -217,6 +183,11 @@ namespace aq {
         vk::Result ccp_result;
         std::tie(ccp_result, command_pool) = device.createCommandPool(command_pool_create_info);
         CHECK_VK_RESULT_R(ccp_result, false, "Failed to create command pool");
+
+        deletion_queue.push_function([this](){
+            if (command_pool) device.destroyCommandPool(command_pool);
+            command_pool = nullptr;
+        });
 
         return true;
     }
@@ -284,7 +255,12 @@ namespace aq {
         vk::Result crp_result;
         std::tie(crp_result, render_pass) = device.createRenderPass(render_pass_info);
         CHECK_VK_RESULT_R(crp_result, false, "Failed to create render pass");
-        
+
+        deletion_queue.push_function([this]() {
+            if (render_pass) device.destroyRenderPass(render_pass);
+            render_pass = nullptr;
+        });
+
         return true;
     }
 
@@ -293,6 +269,10 @@ namespace aq {
 
         auto[acb_result, cmd_buffs] = device.allocateCommandBuffers(cmd_buff_alloc_info);
         CHECK_VK_RESULT_R(acb_result, false, "Failed to allocate command buffer(s)");
+        swap_chain_deletion_queue.push_function([this]() {
+            if (main_command_buffer) device.freeCommandBuffers(command_pool, main_command_buffer);
+            main_command_buffer = nullptr;
+        });
 
         main_command_buffer = cmd_buffs[0];
 
@@ -368,11 +348,24 @@ namespace aq {
         vk::Result csc_result;
         std::tie(csc_result, swap_chain) = device.createSwapchainKHR(swap_chain_create_info);
         CHECK_VK_RESULT_R(csc_result, false, "Failed to create swap chain");
+        swap_chain_deletion_queue.push_function([this]() {
+            if (swap_chain) device.destroySwapchainKHR(swap_chain);
+            swap_chain = nullptr;
+        });
 
         return true;
     }
 
     bool InitializationEngine::init_framebuffers() {
+        swap_chain_deletion_queue.push_function([this]() {
+            for (auto& framebuffer : framebuffers) { device.destroyFramebuffer(framebuffer); }
+            framebuffers.clear();
+
+            for (auto& image_view : swap_chain_image_views) { device.destroyImageView(image_view); }
+            swap_chain_image_views.clear();
+            swap_chain_images.clear(); // Swap chain images are created by the swapchain so I don't need to delete them myself
+        });
+
         vk::Result gsci_result;
         std::tie(gsci_result, swap_chain_images) = device.getSwapchainImagesKHR(swap_chain);
         CHECK_VK_RESULT_R(gsci_result, false, "Failed to retrieve swap chain images");
@@ -430,13 +423,27 @@ namespace aq {
         vk::Result cf_result;
         std::tie(cf_result, render_fence) = device.createFence(fence_create_info);
         CHECK_VK_RESULT_R(cf_result, false, "Failed to create render fence");
+        swap_chain_deletion_queue.push_function([this]() {
+            if (render_fence) device.destroyFence(render_fence);
+            render_fence = nullptr;
+        });
 
         vk::SemaphoreCreateInfo semaphore_create_info{};
         vk::Result cs_result;
+
         std::tie(cs_result, render_semaphore) = device.createSemaphore(semaphore_create_info);
         CHECK_VK_RESULT_R(cs_result, false, "Failed to create render semaphore");
+        swap_chain_deletion_queue.push_function([this]() {
+            if (render_semaphore) device.destroySemaphore(render_semaphore);
+            render_semaphore = nullptr;
+        });
+
         std::tie(cs_result, present_semaphore) = device.createSemaphore(semaphore_create_info);
         CHECK_VK_RESULT_R(cs_result, false, "Failed to create present semaphore");
+        swap_chain_deletion_queue.push_function([this]() {
+            if (present_semaphore) device.destroySemaphore(present_semaphore);
+            present_semaphore = nullptr;
+        });
 
         return true;
     }

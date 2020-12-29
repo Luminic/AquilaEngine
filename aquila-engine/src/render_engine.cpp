@@ -118,12 +118,7 @@ namespace aq {
     }
 
     void RenderEngine::cleanup_render_resources() {
-        // Destroy pipeline
-        if (triangle_pipeline) device.destroyPipeline(triangle_pipeline);
-        triangle_pipeline = nullptr;
-
-        if (triangle_pipeline_layout) device.destroyPipelineLayout(triangle_pipeline_layout);
-        triangle_pipeline_layout = nullptr;
+        deletion_queue.flush();
     }
 
     bool RenderEngine::init_pipelines() {
@@ -154,6 +149,10 @@ namespace aq {
         vk::Result cpl_result;
         std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
         CHECK_VK_RESULT_R(cpl_result, false, "Failed to create pipeline layout");
+        deletion_queue.push_function([this]() {
+            if (triangle_pipeline_layout) device.destroyPipelineLayout(triangle_pipeline_layout);
+            triangle_pipeline_layout = nullptr;
+        });
 
         std::array<vk::DynamicState, 2> dynamic_states({vk::DynamicState::eViewport, vk::DynamicState::eScissor});
 
@@ -185,6 +184,11 @@ namespace aq {
         
         if (!triangle_pipeline)
             return false;
+
+        deletion_queue.push_function([this]() {
+            if (triangle_pipeline) device.destroyPipeline(triangle_pipeline);
+            triangle_pipeline = nullptr;
+        });
         
         return true;
     }

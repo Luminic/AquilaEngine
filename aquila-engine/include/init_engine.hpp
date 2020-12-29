@@ -9,8 +9,25 @@
 #include "vk_initializers.hpp"
 
 #include <unordered_map>
+#include <deque>
+#include <functional>
 
 namespace aq {
+
+    class DeletionQueue {
+    public:
+        void push_function(std::function<void()>&& function) {
+            deletors.push_back(function);
+        }
+        void flush() {
+            for (auto it = deletors.rbegin(); it != deletors.rend(); ++it) {
+                (*it)(); // Call functors
+            }
+            deletors.clear();
+        }
+    private:
+        std::deque<std::function<void()>> deletors;
+    };
 
     class InitializationEngine {
     public:
@@ -115,6 +132,10 @@ namespace aq {
         bool init_swapchain();
         bool init_framebuffers();
         bool init_sync_structures();
+    
+    private:
+        DeletionQueue deletion_queue;
+        DeletionQueue swap_chain_deletion_queue;
     };
 
 }

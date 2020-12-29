@@ -28,8 +28,18 @@ namespace aq {
         vk::Buffer buffer;
         vma::Allocation allocation;
 
-        void operator=(const std::pair<vk::Buffer, vma::Allocation>& rhs) {
+        void operator=(const std::pair<vk::Buffer, vma::Allocation>& lhs) {
             buffer = lhs.first;
+            allocation = lhs.second;
+        }
+    };
+
+    struct AllocatedImage {
+        vk::Image image;
+        vma::Allocation allocation;
+
+        void operator=(const std::pair<vk::Image, vma::Allocation>& lhs) {
+            image = lhs.first;
             allocation = lhs.second;
         }
     };

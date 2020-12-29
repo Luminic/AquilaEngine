@@ -26,7 +26,7 @@ namespace aq {
 
     protected:
         virtual bool init_render_resources() override;
-        virtual void cleanup_render_resources() override;
+        void cleanup_render_resources() final; // Cannot be overriden or the resources would leak
 
         bool init_pipelines();
         vk::PipelineLayout triangle_pipeline_layout;
@@ -39,6 +39,9 @@ namespace aq {
         uint64_t frame_number{0};
 
         friend class AquilaEngine;
+    
+    private:
+        DeletionQueue deletion_queue;
     };
 
 }
