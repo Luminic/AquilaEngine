@@ -67,6 +67,8 @@ namespace aq {
     void Mesh::free() {
         if (allocator) {
             allocator->destroyBuffer(vertex_buffer.buffer, vertex_buffer.allocation);
+            vertex_buffer.buffer = nullptr;
+            vertex_buffer.allocation = nullptr;
             allocator = nullptr;
         }
     }

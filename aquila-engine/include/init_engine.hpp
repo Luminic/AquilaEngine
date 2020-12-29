@@ -93,6 +93,7 @@ namespace aq {
         // Initialized in `init_default_renderpass`
 
         vk::RenderPass render_pass;
+        vk::Format depth_format;
 
         // Initialized in `init_command_buffers`
 
@@ -101,6 +102,8 @@ namespace aq {
         // Initialized in `init_swapchain`
 
         vk::SwapchainKHR swap_chain;
+        vk::ImageView depth_image_view;
+        AllocatedImage depth_image;
 
         // Initialized in `init_framebuffers`
 

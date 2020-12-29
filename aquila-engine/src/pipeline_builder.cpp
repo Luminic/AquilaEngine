@@ -104,6 +104,13 @@ namespace aq {
         );
     }
 
+
+    PipelineBuilder& PipelineBuilder::set_depth_stencil_state(const vk::PipelineDepthStencilStateCreateInfo& depth_stencil_state) {
+        this->depth_stencil_state = depth_stencil_state;
+        return *this;
+    }
+
+
     PipelineBuilder& PipelineBuilder::set_dynamic_state(const vk::PipelineDynamicStateCreateInfo& dynamic_state) {
         this->dynamic_state = dynamic_state;
         return *this;
@@ -134,7 +141,7 @@ namespace aq {
             &viewport_state,
             &rasterization_state,
             &multisample_state,
-            nullptr, // depth stencil state
+            &depth_stencil_state,
             &color_blending,
             &dynamic_state,
             pipeline_layout,

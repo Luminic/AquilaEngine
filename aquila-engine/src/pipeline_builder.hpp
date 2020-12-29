@@ -33,6 +33,8 @@ namespace aq {
         PipelineBuilder& set_multisample_state(const vk::PipelineMultisampleStateCreateInfo& multisample_state);
         static vk::PipelineMultisampleStateCreateInfo default_multisample_state_one_sample();
 
+        PipelineBuilder& set_depth_stencil_state(const vk::PipelineDepthStencilStateCreateInfo& depth_stencil_state);
+
         PipelineBuilder& set_dynamic_state(const vk::PipelineDynamicStateCreateInfo& dynamic_state);
 
         PipelineBuilder& set_pipeline_layout(const vk::PipelineLayout& pipeline_layout);
@@ -49,6 +51,7 @@ namespace aq {
         vk::PipelineRasterizationStateCreateInfo rasterization_state;
         std::vector<vk::PipelineColorBlendAttachmentState> color_blend_attachments;
         vk::PipelineMultisampleStateCreateInfo multisample_state;
+        vk::PipelineDepthStencilStateCreateInfo depth_stencil_state;
         vk::PipelineDynamicStateCreateInfo dynamic_state;
         vk::PipelineLayout pipeline_layout;
     };

@@ -53,9 +53,10 @@ namespace aq {
 
         uint64_t period = 2048;
         float flash = (frame_number%period) / float(period);
-        std::array<vk::ClearValue, 1> clear_values{
-            {vk::ClearColorValue{std::array<float,4>{0.0f,0.0f,flash,0.0f}}}
-        };
+        std::array<vk::ClearValue, 2> clear_values{{
+            {vk::ClearColorValue(std::array<float,4>{0.0f,0.0f,flash,0.0f})},
+            {vk::ClearDepthStencilValue(1.0f, 0)}
+        }};
 
         vk::RenderPassBeginInfo render_pass_begin_info(
             render_pass,
@@ -70,7 +71,6 @@ namespace aq {
         main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
 
         glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(frame_number * 0.4f), glm::vec3(0, 1, 0));
-        // glm::mat4 mesh_matrix = camera->get_projection_matrix() * camera->get_view_matrix() * model;
         glm::mat4 vp = camera->get_projection_matrix() * camera->get_view_matrix();
 
         PushConstants constants;
@@ -140,6 +140,7 @@ namespace aq {
             return false;
         }
 
+
         std::array<vk::PushConstantRange, 1> push_constant_ranges = {
             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants))
         };
@@ -177,6 +178,13 @@ namespace aq {
             })
             .add_color_blend_attachment(PipelineBuilder::default_color_blend_attachment())
             .set_multisample_state(PipelineBuilder::default_multisample_state_one_sample())
+            .set_depth_stencil_state({
+                {}, // flags
+                VK_TRUE, VK_TRUE, // depth test & write
+                vk::CompareOp::eLessOrEqual,
+                VK_FALSE, // depth bounds test
+                VK_FALSE // stencil test
+            })
             .set_dynamic_state({{}, dynamic_states})
             .set_pipeline_layout(triangle_pipeline_layout);
 

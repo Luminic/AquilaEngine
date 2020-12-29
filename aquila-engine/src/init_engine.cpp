@@ -216,31 +216,49 @@ namespace aq {
     }
 
     bool InitializationEngine::init_default_renderpass() {
-        std::array<vk::AttachmentDescription, 1> attachment_descriptions{
+        depth_format = vk::Format::eD32Sfloat;
+        
+        std::array<vk::AttachmentDescription, 2> attachment_descriptions{
             vk::AttachmentDescription( // Color Attachment
                 {}, // flags
                 surface_format.format,
                 vk::SampleCountFlagBits::e1,
                 vk::AttachmentLoadOp::eClear, // Load op
                 vk::AttachmentStoreOp::eStore, // Store op
-                vk::AttachmentLoadOp::eDontCare, // Stencil load op
+                vk::AttachmentLoadOp::eClear, // Stencil load op
                 vk::AttachmentStoreOp::eDontCare, // Stencil store op
                 vk::ImageLayout::eUndefined, // Initial layout
                 vk::ImageLayout::ePresentSrcKHR // Final layout
+            ),
+            vk::AttachmentDescription( // Depth Attachment
+                {}, // flags
+                depth_format,
+                vk::SampleCountFlagBits::e1,
+                vk::AttachmentLoadOp::eClear, // Load op
+                vk::AttachmentStoreOp::eStore, // Store op
+                vk::AttachmentLoadOp::eClear, // Stencil load op
+                vk::AttachmentStoreOp::eDontCare, // Stencil store op
+                vk::ImageLayout::eUndefined, // Initial layout
+                vk::ImageLayout::eDepthStencilAttachmentOptimal // Final layout
             )
         };
 
-        std::array<vk::AttachmentReference, 1> attachment_refs{
-            {{0, vk::ImageLayout::eColorAttachmentOptimal}}
-        };
+        std::array<vk::AttachmentReference, 1> color_attachment_refs{{
+            {0, vk::ImageLayout::eColorAttachmentOptimal}
+        }};
+
+        vk::AttachmentReference depth_attachment_ref(
+            1, vk::ImageLayout::eDepthStencilAttachmentOptimal
+        );
+
         std::array<vk::SubpassDescription, 1> subpass_descriptions{
             vk::SubpassDescription(
                 {}, // flags
                 vk::PipelineBindPoint::eGraphics,
                 {}, // input attachments count
-                attachment_refs,
+                color_attachment_refs,
                 {}, // resolve attachments
-                {}, // depth stencil attachment
+                &depth_attachment_ref,
                 {} // preserve attachments
             )
         };
@@ -326,6 +344,58 @@ namespace aq {
             min_image_count = std::clamp(min_image_count, sw_ch_support.capabilities.minImageCount, sw_ch_support.capabilities.maxImageCount);
         }
 
+        // Create depth buffer
+        vk::Extent3D depth_image_extent(window_extent.width, window_extent.height, 1);
+
+        vk::ImageCreateInfo depth_img_info(
+            {}, // Flags
+            vk::ImageType::e2D,
+            depth_format,
+            depth_image_extent,
+            1, // mip levels
+            1, // array layers
+            vk::SampleCountFlagBits::e1,
+            vk::ImageTiling::eOptimal,
+            vk::ImageUsageFlagBits::eDepthStencilAttachment
+        );
+
+        vma::AllocationCreateInfo depth_img_alloc_info(
+            {}, // Allocation create flags
+            vma::MemoryUsage::eGpuOnly,
+            vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eDeviceLocal)
+        );
+
+        auto [cdi_result, img_alloc] = allocator.createImage(depth_img_info, depth_img_alloc_info);
+        depth_image = img_alloc;
+        CHECK_VK_RESULT_R(cdi_result, false, "Failed to create depth image");
+        deletion_queue.push_function([this]() {
+            allocator.destroyImage(depth_image.image, depth_image.allocation);
+            depth_image.image = nullptr; depth_image.allocation = nullptr;
+        });
+
+        vk::ImageViewCreateInfo depth_img_view_info(
+            {}, // flags
+            depth_image.image,
+            vk::ImageViewType::e2D,
+            depth_format,
+            {vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity},
+            { // subresource range
+                vk::ImageAspectFlagBits::eDepth,
+                0, // base mip level
+                1, // level count
+                0, // base array level
+                1 // layer count
+            }
+        );
+
+        vk::Result cdiv_result;
+        std::tie(cdiv_result, depth_image_view) = device.createImageView(depth_img_view_info);
+        CHECK_VK_RESULT_R(cdiv_result, false, "Failed to create depth image view");
+        deletion_queue.push_function([this]() {
+            if (depth_image_view) device.destroyImageView(depth_image_view);
+            depth_image_view = nullptr;
+        });
+
         // Actually create swapchain
         vk::SwapchainCreateInfoKHR swap_chain_create_info(
             {}, // flags
@@ -407,9 +477,14 @@ namespace aq {
             window_extent.height,
             1 // layers
         );
+
+        std::array<vk::ImageView, 2> attachments({nullptr, depth_image_view});
         for (uint32_t i=0; i<image_count; ++i) {
-            fb_create_info.attachmentCount = 1;
-            fb_create_info.pAttachments = &swap_chain_image_views[i];
+            // fb_create_info.attachmentCount = 1;
+            // fb_create_info.pAttachments = &swap_chain_image_views[i];
+            attachments[0] = swap_chain_image_views[i];
+            fb_create_info.setAttachments(attachments);
+
             vk::Result cf_result;
             std::tie(cf_result, framebuffers[i]) = device.createFramebuffer(fb_create_info);
             CHECK_VK_RESULT_R(cf_result, false, "Failed to create framebuffer");
