@@ -1,5 +1,5 @@
-#ifndef VK_INITIALIZERS_HPP
-#define VK_INITIALIZERS_HPP
+#ifndef AQUILA_VK_INITIALIZERS_HPP
+#define AQUILA_VK_INITIALIZERS_HPP
 
 #include "vk_types.hpp"
 

@@ -1,5 +1,5 @@
-#ifndef PIPELINE_BUILDER_HPP
-#define PIPELINE_BUILDER_HPP
+#ifndef AQUILA_PIPELINE_BUILDER_HPP
+#define AQUILA_PIPELINE_BUILDER_HPP
 
 #include "vk_types.hpp"
 

@@ -1,5 +1,5 @@
-#ifndef AQ_NODE_HPP
-#define AQ_NODE_HPP
+#ifndef AQUILA_NODE_HPP
+#define AQUILA_NODE_HPP
 
 #include "aq_mesh.hpp"
 #include <glm/glm.hpp>

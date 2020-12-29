@@ -1,5 +1,5 @@
-#ifndef CAMERA_CONTROLLER
-#define CAMERA_CONTROLLER
+#ifndef SANDBOX_CAMERA_CONTROLLER_HPP
+#define SANDBOX_CAMERA_CONTROLLER_HPP
 
 #include "aq_camera.hpp"
 

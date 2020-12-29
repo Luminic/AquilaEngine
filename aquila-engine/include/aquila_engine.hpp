@@ -1,5 +1,5 @@
-#ifndef AQ_ENGINE_HPP
-#define AQ_ENGINE_HPP
+#ifndef AQUILA_ENGINE_HPP
+#define AQUILA_ENGINE_HPP
 
 #include "render_engine.hpp"
 #include "aq_camera.hpp"

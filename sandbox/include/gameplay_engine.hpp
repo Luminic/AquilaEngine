@@ -1,5 +1,5 @@
-#ifndef GAMEPLAY_ENGINE_HPP
-#define GAMEPLAY_ENGINE_HPP
+#ifndef SANDBOX_GAMEPLAY_ENGINE_HPP
+#define SANDBOX_GAMEPLAY_ENGINE_HPP
 
 #include <aquila_engine.hpp>
 #include "camera_controller.hpp"

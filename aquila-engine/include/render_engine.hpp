@@ -1,5 +1,5 @@
-#ifndef VK_RENDER_ENGINE_HPP
-#define VK_RENDER_ENGINE_HPP
+#ifndef AQUILA_RENDER_ENGINE_HPP
+#define AQUILA_RENDER_ENGINE_HPP
 
 #include "init_engine.hpp"
 #include "aq_camera.hpp"

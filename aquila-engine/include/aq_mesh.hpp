@@ -1,5 +1,5 @@
-#ifndef VK_MESH_HPP
-#define VK_MESH_HPP
+#ifndef AQUILA_MESH_HPP
+#define AQUILA_MESH_HPP
 
 #include <vk_types.hpp>
 #include <glm/glm.hpp>
