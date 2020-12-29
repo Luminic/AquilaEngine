@@ -86,15 +86,22 @@ void GameplayEngine::run() {
 void GameplayEngine::init_meshes() {
     std::shared_ptr<aq::Mesh> triangle_mesh = std::make_shared<aq::Mesh>();
 
-    triangle_mesh->vertices.resize(3);
+    triangle_mesh->vertices.resize(4);
 
-    triangle_mesh->vertices[0].position = { 1.0f, 1.0f, 0.0f, 1.0f};
-    triangle_mesh->vertices[1].position = {-1.0f, 1.0f, 0.0f, 1.0f};
-    triangle_mesh->vertices[2].position = { 0.0f,-1.0f, 0.0f, 1.0f};
+    triangle_mesh->vertices[0].position = {-1.0f,-1.0f, 0.0f, 1.0f};
+    triangle_mesh->vertices[1].position = { 1.0f,-1.0f, 0.0f, 1.0f};
+    triangle_mesh->vertices[2].position = { 1.0f, 1.0f, 0.0f, 1.0f};
+    triangle_mesh->vertices[3].position = {-1.0f, 1.0f, 0.0f, 1.0f};
 
     triangle_mesh->vertices[0].color = {1.0f, 1.0f, 0.0f, 0.0f};
     triangle_mesh->vertices[1].color = {1.0f, 0.0f, 1.0f, 0.0f};
     triangle_mesh->vertices[2].color = {0.0f, 0.0f, 1.0f, 0.0f};
+    triangle_mesh->vertices[3].color = {1.0f, 1.0f, 1.0f, 0.0f};
+
+    triangle_mesh->indices = {
+        0, 1, 3,
+        3, 1, 2
+    };
 
     // aquila_engine.root_node->add_mesh(triangle_mesh);
     for (auto& n : aquila_engine.root_node) {

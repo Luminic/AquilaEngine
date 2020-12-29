@@ -3,9 +3,6 @@ find_package(Vulkan REQUIRED)
 
 find_path(GLM_PATH, glm) # Header only
 
-message(STATUS "glm path")
-message(STATUS ${GLM_PATH})
-
 add_library(aquila-engine SHARED
     init_engine.cpp
     render_engine.cpp
@@ -13,6 +10,7 @@ add_library(aquila-engine SHARED
     vk_initializers.cpp
     pipeline_builder.cpp
     aq_mesh.cpp
+    aq_vertex.cpp
     aq_node.cpp
     aq_camera.cpp
 )

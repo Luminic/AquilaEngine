@@ -81,7 +81,9 @@ namespace aq {
                 main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
                 for (auto& mesh : (*it)->child_meshes) {
                     main_command_buffer.bindVertexBuffers(0, {mesh->vertex_buffer.buffer}, {0});
-                    main_command_buffer.draw(mesh->vertices.size(), 1, 0, 0);
+                    main_command_buffer.bindIndexBuffer(mesh->index_buffer.buffer, 0, index_vk_type);
+                    // main_command_buffer.draw(mesh->vertices.size(), 1, 0, 0);
+                    main_command_buffer.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
                 }
             }
         }
