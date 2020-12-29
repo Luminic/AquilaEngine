@@ -12,7 +12,8 @@ add_library(aquila-engine SHARED
     aquila_engine.cpp
     vk_initializers.cpp
     pipeline_builder.cpp
-    vk_mesh.cpp
+    aq_mesh.cpp
+    aq_node.cpp
     aq_camera.cpp
 )
 

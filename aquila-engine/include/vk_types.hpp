@@ -28,7 +28,7 @@ namespace aq {
         vk::Buffer buffer;
         vma::Allocation allocation;
 
-        void operator=(const std::pair<vk::Buffer, vma::Allocation>& lhs) {
+        void operator=(const std::pair<vk::Buffer, vma::Allocation>& rhs) {
             buffer = lhs.first;
             allocation = lhs.second;
         }

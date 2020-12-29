@@ -18,7 +18,7 @@ namespace aq {
 
     void RenderEngine::update() {}
 
-    void RenderEngine::draw(AbstractCamera* camera) {
+    void RenderEngine::draw(AbstractCamera* camera, std::shared_ptr<Node> object_hierarchy) {
         if (initialization_state != InitializationState::Initialized) {
             std::cerr << "`VulkanRenderEngine` can only draw when `initialization_state` is `InitializationState::Initialized`" << std::endl;
             return;
@@ -68,17 +68,23 @@ namespace aq {
 
         // Actual rendering
         main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
-        main_command_buffer.bindVertexBuffers(0, {triangle_mesh.vertex_buffer.buffer}, {0});
 
         glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(frame_number * 0.4f), glm::vec3(0, 1, 0));
-        glm::mat4 mesh_matrix = camera->get_projection_matrix() * camera->get_view_matrix() * model;
+        // glm::mat4 mesh_matrix = camera->get_projection_matrix() * camera->get_view_matrix() * model;
+        glm::mat4 vp = camera->get_projection_matrix() * camera->get_view_matrix();
 
         PushConstants constants;
-        constants.view_projection = mesh_matrix;
-
-        main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
-        main_command_buffer.draw(3, 1, 0, 0);
-
+        
+        for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
+            if ((*it)->child_meshes.size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
+                constants.view_projection = vp * it.get_transform();
+                main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
+                for (auto& mesh : (*it)->child_meshes) {
+                    main_command_buffer.bindVertexBuffers(0, {mesh->vertex_buffer.buffer}, {0});
+                    main_command_buffer.draw(mesh->vertices.size(), 1, 0, 0);
+                }
+            }
+        }
 
         main_command_buffer.endRenderPass();
 
@@ -112,13 +118,6 @@ namespace aq {
     }
 
     void RenderEngine::cleanup_render_resources() {
-        if (device && allocator && triangle_mesh.vertex_buffer.buffer && triangle_mesh.vertex_buffer.allocation) {
-            CHECK_VK_RESULT(device.waitIdle(), "Failed to wait for device to finish all tasks for cleanup");
-            allocator.destroyBuffer(triangle_mesh.vertex_buffer.buffer, triangle_mesh.vertex_buffer.allocation);
-            triangle_mesh.vertex_buffer.buffer = nullptr;
-            triangle_mesh.vertex_buffer.allocation = nullptr;
-        }
-
         // Destroy pipeline
         if (triangle_pipeline) device.destroyPipeline(triangle_pipeline);
         triangle_pipeline = nullptr;
@@ -158,7 +157,7 @@ namespace aq {
 
         std::array<vk::DynamicState, 2> dynamic_states({vk::DynamicState::eViewport, vk::DynamicState::eScissor});
 
-        VertexInputDescription vertex_input_description = Vertex::get_vertex_description();
+        Vertex::InputDescription vertex_input_description = Vertex::get_vertex_description();
 
         PipelineBuilder pipeline_builder = PipelineBuilder()
             .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, *triangle_vert_shader, "main"})
@@ -187,51 +186,12 @@ namespace aq {
         if (!triangle_pipeline)
             return false;
         
-        load_meshes();
-
         return true;
     }
 
     bool RenderEngine::resize_window() {
         if (!InitializationEngine::resize_window()) return false;
         return true;
-    }
-
-    void RenderEngine::load_meshes() {
-        triangle_mesh.vertices.resize(3);
-
-        triangle_mesh.vertices[0].position = { 1.0f, 1.0f, 0.0f, 1.0f};
-        triangle_mesh.vertices[1].position = {-1.0f, 1.0f, 0.0f, 1.0f};
-        triangle_mesh.vertices[2].position = { 0.0f,-1.0f, 0.0f, 1.0f};
-
-        triangle_mesh.vertices[0].color = {1.0f, 1.0f, 0.0f, 0.0f};
-        triangle_mesh.vertices[1].color = {1.0f, 0.0f, 1.0f, 0.0f};
-        triangle_mesh.vertices[2].color = {0.0f, 0.0f, 1.0f, 0.0f};
-
-        upload_mesh(triangle_mesh);
-    }
-
-    void RenderEngine::upload_mesh(Mesh& mesh) {
-        // Allocate vertex buffer
-
-        vk::BufferCreateInfo buffer_create_info(
-            {},
-            mesh.vertices.size() * sizeof(Vertex),
-            vk::BufferUsageFlagBits::eVertexBuffer,
-            vk::SharingMode::eExclusive
-        );
-
-        vma::AllocationCreateInfo alloc_create_info({}, vma::MemoryUsage::eCpuToGpu);
-
-        auto[cb_result, buff_alloc] = allocator.createBuffer(buffer_create_info, alloc_create_info);
-        CHECK_VK_RESULT(cb_result, "Failed to create/allocate mesh vertex-buffer");
-        mesh.vertex_buffer = buff_alloc;
-
-        // Copy vertex data into vertex buffer
-
-        auto[mm_result, memory] = allocator.mapMemory(mesh.vertex_buffer.allocation);
-        memcpy(memory, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
-        allocator.unmapMemory(mesh.vertex_buffer.allocation);
     }
 
 }

@@ -20,6 +20,8 @@ protected:
     CameraController camera_controller;
 
     bool paused = true;
+
+    void init_meshes();
 };
 
 #endif

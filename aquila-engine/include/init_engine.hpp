@@ -28,6 +28,7 @@ namespace aq {
 
         // Returns `true` if initialization succeeds and `false` otherwise
         InitializationState init();
+        bool wait_idle();
         void cleanup();
 
         InitializationState get_initialization_state();

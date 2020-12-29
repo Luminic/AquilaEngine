@@ -3,7 +3,8 @@
 
 #include "init_engine.hpp"
 #include "aq_camera.hpp"
-#include "vk_mesh.hpp"
+#include "aq_mesh.hpp"
+#include "aq_node.hpp"
 
 namespace aq {
 
@@ -19,7 +20,7 @@ namespace aq {
         virtual ~RenderEngine();
 
         void update();
-        void draw(AbstractCamera* camera);
+        void draw(AbstractCamera* camera, std::shared_ptr<Node> object_hierarchy);
 
         glm::ivec2 get_render_window_size();
 
@@ -33,16 +34,11 @@ namespace aq {
 
         virtual bool resize_window() override; // Calls inherited `resize_window` method from `InitializationEngine`
 
-        // Rendering code
-
-        void load_meshes();
-        Mesh triangle_mesh;
-
-        void upload_mesh(Mesh& mesh);
-
         // Misc resources
 
         uint64_t frame_number{0};
+
+        friend class AquilaEngine;
     };
 
 }

@@ -41,7 +41,17 @@ namespace aq {
         return initialization_state;
     }
 
+    bool InitializationEngine::wait_idle() {
+        if (device) {
+            CHECK_VK_RESULT_R(device.waitIdle(), false, "Failed to wait for device to idle");
+            return true;
+        }
+        return false;
+    }
+
     void InitializationEngine::cleanup() {
+        wait_idle();
+
         cleanup_render_resources();
         cleanup_swapchain_resources();
         cleanup_vulkan_resources();
