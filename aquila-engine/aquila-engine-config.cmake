@@ -49,6 +49,7 @@ unset(_expectedTargets)
 add_library(aquila-engine SHARED IMPORTED)
 
 set_target_properties(aquila-engine PROPERTIES
+  INTERFACE_COMPILE_DEFINITIONS "GLM_FORCE_DEPTH_ZERO_TO_ONE"
   INTERFACE_INCLUDE_DIRECTORIES "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/include"
   INTERFACE_LINK_LIBRARIES "SDL2::SDL2;vma"
 )

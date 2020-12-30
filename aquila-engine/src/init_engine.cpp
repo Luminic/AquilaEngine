@@ -22,7 +22,7 @@ namespace aq {
         SDL_WindowFlags window_flags = SDL_WindowFlags(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
         window = SDL_CreateWindow(
-            "Vulkan Engine",
+            "Aquila Engine",
             SDL_WINDOWPOS_UNDEFINED,
             SDL_WINDOWPOS_UNDEFINED,
             window_extent.width,

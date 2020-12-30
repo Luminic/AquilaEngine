@@ -76,10 +76,10 @@ namespace aq {
         PushConstants constants;
         
         for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
-            if ((*it)->child_meshes.size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
+            if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
                 constants.view_projection = vp * it.get_transform();
                 main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
-                for (auto& mesh : (*it)->child_meshes) {
+                for (auto& mesh : (*it)->get_child_meshes()) {
                     main_command_buffer.bindVertexBuffers(0, {mesh->vertex_buffer.buffer}, {0});
                     main_command_buffer.bindIndexBuffer(mesh->index_buffer.buffer, 0, index_vk_type);
                     // main_command_buffer.draw(mesh->vertices.size(), 1, 0, 0);
@@ -124,7 +124,7 @@ namespace aq {
     }
 
     bool RenderEngine::init_pipelines() {
-        std::string proj_path(PROJECT_PATH);
+        std::string proj_path(AQUILA_ENGINE_PATH);
 
         vk::UniqueShaderModule triangle_vert_shader = vk_init::load_shader_module_unique(
             (proj_path + "/shaders/color.vert.spv").c_str(), device

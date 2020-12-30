@@ -2,6 +2,9 @@
 
 namespace aq {
 
+    Vertex::Vertex(glm::vec4 position, glm::vec4 normal, glm::vec4 color)
+    : position(position), normal(normal), color(color) {}
+
     Vertex::InputDescription Vertex::get_vertex_description() {
         vk::VertexInputBindingDescription main_binding(0, sizeof(Vertex), vk::VertexInputRate::eVertex);
 

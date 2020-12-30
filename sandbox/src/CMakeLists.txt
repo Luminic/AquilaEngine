@@ -9,6 +9,10 @@ target_include_directories(sandbox
     PRIVATE ${PROJECT_SOURCE_DIR}/src
 )
 
+target_compile_definitions(sandbox
+    PRIVATE SANDBOX_PROJECT_PATH="${PROJECT_SOURCE_DIR}"
+)
+
 find_package(SDL2 REQUIRED)
 find_package(aquila-engine REQUIRED PATHS ${PROJECT_SOURCE_DIR}/../aquila-engine/)
 

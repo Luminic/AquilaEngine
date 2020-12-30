@@ -8,6 +8,12 @@
 namespace aq {
 
     struct Vertex {
+        Vertex(
+            glm::vec4 position = glm::vec4(0.0f,0.0f,0.0f,1.0f), 
+            glm::vec4 normal = glm::vec4(0.0f), 
+            glm::vec4 color = glm::vec4(0.0f)
+        );
+
         glm::vec4 position;
         glm::vec4 normal;
         glm::vec4 color;

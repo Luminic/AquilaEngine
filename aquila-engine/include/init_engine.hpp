@@ -2,7 +2,6 @@
 #define AQUILA_INITIALIZATION_ENGINE_HPP
 
 #include <SDL2/SDL.h>
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
 #include "vk_types.hpp"

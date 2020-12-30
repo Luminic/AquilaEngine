@@ -13,25 +13,33 @@ namespace aq {
         class Iterator;
         class HierarchyIterator;
 
-        Node(glm::vec3 position=glm::vec3(0.0f), 
+        Node(
+            glm::vec3 position=glm::vec3(0.0f), 
             glm::quat rotation=glm::quat(1.0f,0.0f,0.0f,0.0f), 
-            glm::vec3 scale=glm::vec3(1.0f));
+            glm::vec3 scale=glm::vec3(1.0f),
+            glm::mat4 org_transform=glm::mat4(1.0f)
+        );
         virtual ~Node();
 
         virtual void add_node(std::shared_ptr<Node> node);
         virtual void remove_node(Node* node);
 
         virtual void add_mesh(std::shared_ptr<Mesh> mesh);
+        virtual void remove_mesh(Mesh* mesh);
+
+        virtual const std::vector<std::shared_ptr<Mesh>>& get_child_meshes() {return child_meshes;}
+        virtual const std::vector<std::shared_ptr<Node>>& get_child_nodes() {return child_nodes;}
 
         virtual glm::mat4 get_model_matrix();
-    
-    // private:
-        std::vector<std::shared_ptr<Mesh>> child_meshes;
-        std::vector<std::shared_ptr<Node>> child_nodes;
 
+        glm::mat4 org_transform;
         glm::vec3 position;
         glm::quat rotation;
         glm::vec3 scale;
+    
+    protected:
+        std::vector<std::shared_ptr<Mesh>> child_meshes;
+        std::vector<std::shared_ptr<Node>> child_nodes;
         
     };
 

@@ -1,6 +1,10 @@
 #include "gameplay_engine.hpp"
 
+#include <aq_model_loader.hpp>
+#include <glm/glm.hpp>
+
 #include <iostream>
+#include <string>
 
 GameplayEngine::GameplayEngine() : camera_controller(&camera) {
     glm::ivec2 size = aquila_engine.get_render_window_size();
@@ -103,9 +107,25 @@ void GameplayEngine::init_meshes() {
         3, 1, 2
     };
 
-    // aquila_engine.root_node->add_mesh(triangle_mesh);
+    glm::quat small_y_rot = glm::quat(glm::vec3(0.0f, -3.1415f / 4, 0.0f));
+    auto prev = aquila_engine.root_node;
+    for (uint i=0; i<30; ++i) {
+        std::shared_ptr<aq::Node> child = std::make_shared<aq::Node>(glm::vec4(4.0f,-0.8f,0.0f,1.0f), small_y_rot);
+        prev->add_node(child);
+        prev = child;
+    }
+
+    aquila_engine.root_node->rotation = glm::quat(glm::vec3(0.0f, 3.1415f, 0.0f));
+
+
+    aq::ModelLoader model_loader((std::string(SANDBOX_PROJECT_PATH) + "/resources/monkey.obj").c_str());
+
+    std::vector<std::shared_ptr<aq::Node>> nodes;
     for (auto& n : aquila_engine.root_node) {
-        n->add_mesh(triangle_mesh);
+        nodes.push_back(n);
+    }
+    for (auto& node : nodes) {
+        node->add_node(model_loader.get_root_node());
     }
 
     aquila_engine.upload_meshes();

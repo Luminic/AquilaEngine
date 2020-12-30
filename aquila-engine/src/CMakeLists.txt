@@ -1,5 +1,6 @@
 find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(assimp REQUIRED)
 
 find_path(GLM_PATH, glm) # Header only
 
@@ -13,9 +14,13 @@ add_library(aquila-engine SHARED
     aq_vertex.cpp
     aq_node.cpp
     aq_camera.cpp
+    aq_model_loader.cpp
 )
 
-target_compile_definitions(aquila-engine PRIVATE PROJECT_PATH="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(aquila-engine 
+    PRIVATE AQUILA_ENGINE_PATH="${PROJECT_SOURCE_DIR}"
+    PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE
+)
 
 target_include_directories(aquila-engine
     PUBLIC ${PROJECT_SOURCE_DIR}/include
@@ -29,5 +34,6 @@ target_include_directories(aquila-engine # Header only so include, but don't lin
 target_link_libraries(aquila-engine
     PUBLIC SDL2::SDL2
     PRIVATE Vulkan::Vulkan
+    PRIVATE assimp
     PUBLIC vma
 )

@@ -10,7 +10,8 @@
                 "${workspaceFolder}/sandbox/include"
             ],
             "defines": [
-                "PROJECT_PATH = \"/home/l/C++/Vulkan/Vulkan-Engine\""
+                "AQUILA_ENGINE_PATH = \"/home/l/C++/Vulkan/Vulkan-Engine\"",
+                "SANDBOX_PROJECT_PATH = \"/home/l/C++/Vulkan/Vulkan-Engine/sandbox\""
             ],
             "compilerPath": "/usr/bin/g++",
             "cStandard": "c17",
