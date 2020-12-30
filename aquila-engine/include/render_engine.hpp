@@ -22,7 +22,8 @@ namespace aq {
         void update();
         void draw(AbstractCamera* camera, std::shared_ptr<Node> object_hierarchy);
 
-        glm::ivec2 get_render_window_size();
+        glm::ivec2 get_render_window_size() const {return {window_extent.width, window_extent.height};};
+        uint64_t get_frame_number() const {return frame_number;}
 
     protected:
         virtual bool init_render_resources() override;

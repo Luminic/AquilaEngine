@@ -110,10 +110,6 @@ namespace aq {
         ++frame_number;
     }
 
-    glm::ivec2 RenderEngine::get_render_window_size() {
-        return glm::ivec2(window_extent.width, window_extent.height);
-    }
-
     bool RenderEngine::init_render_resources() {
         if (!init_pipelines()) return false;
         return true;

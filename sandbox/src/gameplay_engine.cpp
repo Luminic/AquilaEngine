@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <string>
+#include <chrono>
 
 GameplayEngine::GameplayEngine() : camera_controller(&camera) {
     glm::ivec2 size = aquila_engine.get_render_window_size();
@@ -31,6 +32,8 @@ void GameplayEngine::unpause() {
 void GameplayEngine::run() {
     bool quit = false;
 
+    auto begin_time = std::chrono::high_resolution_clock::now();
+
     while (!quit) {
         SDL_Event event;
         while (SDL_PollEvent(&event) != 0) {
@@ -49,9 +52,22 @@ void GameplayEngine::run() {
                 }
                 break;
             case SDL_KEYDOWN:
-                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                switch (event.key.keysym.sym) {
+                case SDLK_ESCAPE:
                     if (paused) unpause();
                     else pause();
+                    break;
+                case SDLK_f: {
+                    auto end_time = std::chrono::high_resolution_clock::now();
+                    double seconds_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end_time - begin_time).count();
+                    double fps = aquila_engine.get_frame_number() / seconds_elapsed;
+                    std::cout << "average fps: " << fps << '\n';
+                    break;}
+                case SDLK_r:
+                    begin_time = std::chrono::high_resolution_clock::now();
+                    break;
+                default:
+                    break;
                 }
                 break;
             case SDL_MOUSEMOTION: {
