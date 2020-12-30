@@ -180,14 +180,17 @@ namespace aq {
             graphics_queue_family
         );
 
-        vk::Result ccp_result;
-        std::tie(ccp_result, command_pool) = device.createCommandPool(command_pool_create_info);
-        CHECK_VK_RESULT_R(ccp_result, false, "Failed to create command pool");
+        for (uint i=0; i<FRAME_OVERLAP; ++i) {
+            vk::Result ccp_result;
+            std::tie(ccp_result, frames[i].command_pool) = device.createCommandPool(command_pool_create_info);
+            CHECK_VK_RESULT_R(ccp_result, false, "Failed to create command pool");
 
-        deletion_queue.push_function([this](){
-            if (command_pool) device.destroyCommandPool(command_pool);
-            command_pool = nullptr;
-        });
+            deletion_queue.push_function([this, i](){
+                if (frames[i].command_pool) device.destroyCommandPool(frames[i].command_pool);
+                frames[i].command_pool = nullptr;
+            });
+        }
+
 
         return true;
     }
@@ -283,16 +286,21 @@ namespace aq {
     }
 
     bool InitializationEngine::init_command_buffers() {
-        vk::CommandBufferAllocateInfo cmd_buff_alloc_info(command_pool, vk::CommandBufferLevel::ePrimary, 1);
+        vk::CommandBufferAllocateInfo cmd_buff_alloc_info(nullptr, vk::CommandBufferLevel::ePrimary, 1);
 
-        auto[acb_result, cmd_buffs] = device.allocateCommandBuffers(cmd_buff_alloc_info);
-        CHECK_VK_RESULT_R(acb_result, false, "Failed to allocate command buffer(s)");
-        swap_chain_deletion_queue.push_function([this]() {
-            if (main_command_buffer) device.freeCommandBuffers(command_pool, main_command_buffer);
-            main_command_buffer = nullptr;
-        });
+        for (uint i=0; i<FRAME_OVERLAP; ++i) {
+            cmd_buff_alloc_info.commandPool = frames[i].command_pool;
 
-        main_command_buffer = cmd_buffs[0];
+            auto[acb_result, cmd_buffs] = device.allocateCommandBuffers(cmd_buff_alloc_info);
+            CHECK_VK_RESULT_R(acb_result, false, "Failed to allocate command buffer(s)");
+
+            swap_chain_deletion_queue.push_function([this, i]() {
+                if (frames[i].main_command_buffer) device.freeCommandBuffers(frames[i].command_pool, frames[i].main_command_buffer);
+                frames[i].main_command_buffer = nullptr;
+            });
+
+            frames[i].main_command_buffer = cmd_buffs[0];
+        }
 
         return true;
     }
@@ -480,8 +488,6 @@ namespace aq {
 
         std::array<vk::ImageView, 2> attachments({nullptr, depth_image_view});
         for (uint32_t i=0; i<image_count; ++i) {
-            // fb_create_info.attachmentCount = 1;
-            // fb_create_info.pAttachments = &swap_chain_image_views[i];
             attachments[0] = swap_chain_image_views[i];
             fb_create_info.setAttachments(attachments);
 
@@ -494,31 +500,35 @@ namespace aq {
     }
 
     bool InitializationEngine::init_sync_structures() {
-        vk::FenceCreateInfo fence_create_info(vk::FenceCreateFlagBits::eSignaled);
-        vk::Result cf_result;
-        std::tie(cf_result, render_fence) = device.createFence(fence_create_info);
-        CHECK_VK_RESULT_R(cf_result, false, "Failed to create render fence");
-        swap_chain_deletion_queue.push_function([this]() {
-            if (render_fence) device.destroyFence(render_fence);
-            render_fence = nullptr;
-        });
+        for (uint i=0; i<FRAME_OVERLAP; ++i) {
 
-        vk::SemaphoreCreateInfo semaphore_create_info{};
-        vk::Result cs_result;
+            vk::FenceCreateInfo fence_create_info(vk::FenceCreateFlagBits::eSignaled);
+            vk::Result cf_result;
+            std::tie(cf_result, frames[i].render_fence) = device.createFence(fence_create_info);
+            CHECK_VK_RESULT_R(cf_result, false, "Failed to create render fence");
+            swap_chain_deletion_queue.push_function([this, i]() {
+                if (frames[i].render_fence) device.destroyFence(frames[i].render_fence);
+                frames[i].render_fence = nullptr;
+            });
 
-        std::tie(cs_result, render_semaphore) = device.createSemaphore(semaphore_create_info);
-        CHECK_VK_RESULT_R(cs_result, false, "Failed to create render semaphore");
-        swap_chain_deletion_queue.push_function([this]() {
-            if (render_semaphore) device.destroySemaphore(render_semaphore);
-            render_semaphore = nullptr;
-        });
 
-        std::tie(cs_result, present_semaphore) = device.createSemaphore(semaphore_create_info);
-        CHECK_VK_RESULT_R(cs_result, false, "Failed to create present semaphore");
-        swap_chain_deletion_queue.push_function([this]() {
-            if (present_semaphore) device.destroySemaphore(present_semaphore);
-            present_semaphore = nullptr;
-        });
+            vk::SemaphoreCreateInfo semaphore_create_info{};
+            vk::Result cs_result;
+
+            std::tie(cs_result, frames[i].render_semaphore) = device.createSemaphore(semaphore_create_info);
+            CHECK_VK_RESULT_R(cs_result, false, "Failed to create render semaphore");
+            swap_chain_deletion_queue.push_function([this, i]() {
+                if (frames[i].render_semaphore) device.destroySemaphore(frames[i].render_semaphore);
+                frames[i].render_semaphore = nullptr;
+            });
+
+            std::tie(cs_result, frames[i].present_semaphore) = device.createSemaphore(semaphore_create_info);
+            CHECK_VK_RESULT_R(cs_result, false, "Failed to create present semaphore");
+            swap_chain_deletion_queue.push_function([this, i]() {
+                if (frames[i].present_semaphore) device.destroySemaphore(frames[i].present_semaphore);
+                frames[i].present_semaphore = nullptr;
+            });
+        }
 
         return true;
     }

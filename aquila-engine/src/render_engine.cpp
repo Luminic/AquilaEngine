@@ -25,13 +25,14 @@ namespace aq {
         }
 
         uint64_t timeout{ 1'000'000'000 };
+        FrameData& frame_data = get_frame_data(frame_number);
 
         // Wait until the GPU has finished rendering the last frame
-        CHECK_VK_RESULT( device.waitForFences(1, &render_fence, VK_TRUE, timeout), "Failed to wait for render fence");
-        CHECK_VK_RESULT( device.resetFences(1, &render_fence), "Failed to reset render fence");
+        CHECK_VK_RESULT( device.waitForFences(1, &frame_data.render_fence, VK_TRUE, timeout), "Failed to wait for render fence");
+        CHECK_VK_RESULT( device.resetFences(1, &frame_data.render_fence), "Failed to reset render fence");
 
         // Get next swap chain image
-        auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, present_semaphore, {});
+        auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, frame_data.present_semaphore, {});
         if (ani_result == vk::Result::eSuboptimalKHR || ani_result == vk::Result::eErrorOutOfDateKHR) {
             if (!resize_window())
                 std::cerr << "Failed to recreate swapchain when resizing window." << std::endl;
@@ -41,15 +42,15 @@ namespace aq {
         }
 
         // Reset the command buffer
-        CHECK_VK_RESULT(main_command_buffer.reset(), "Failed to reset main cmd buffer");
+        CHECK_VK_RESULT(frame_data.main_command_buffer.reset(), "Failed to reset main cmd buffer");
 
         // Begin command buffer
         vk::CommandBufferBeginInfo cmd_begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-        CHECK_VK_RESULT(main_command_buffer.begin(cmd_begin_info), "Failed to begin cmd buffer");
+        CHECK_VK_RESULT(frame_data.main_command_buffer.begin(cmd_begin_info), "Failed to begin cmd buffer");
 
         // Set the dynamic state
-        main_command_buffer.setViewport(0, {{0.0f, 0.0f, float(window_extent.width), float(window_extent.height), 0.0f, 1.0f}});
-        main_command_buffer.setScissor(0, {{{0, 0}, window_extent}});
+        frame_data.main_command_buffer.setViewport(0, {{0.0f, 0.0f, float(window_extent.width), float(window_extent.height), 0.0f, 1.0f}});
+        frame_data.main_command_buffer.setScissor(0, {{{0, 0}, window_extent}});
 
         uint64_t period = 2048;
         float flash = (frame_number%period) / float(period);
@@ -65,10 +66,10 @@ namespace aq {
             clear_values
         );
 
-        main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
+        frame_data.main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
         // Actual rendering
-        main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
+        frame_data.main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
 
         glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(frame_number * 0.4f), glm::vec3(0, 1, 0));
         glm::mat4 vp = camera->get_projection_matrix() * camera->get_view_matrix();
@@ -78,27 +79,26 @@ namespace aq {
         for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
             if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
                 constants.view_projection = vp * it.get_transform();
-                main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
+                frame_data.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
                 for (auto& mesh : (*it)->get_child_meshes()) {
-                    main_command_buffer.bindVertexBuffers(0, {mesh->vertex_buffer.buffer}, {0});
-                    main_command_buffer.bindIndexBuffer(mesh->index_buffer.buffer, 0, index_vk_type);
-                    // main_command_buffer.draw(mesh->vertices.size(), 1, 0, 0);
-                    main_command_buffer.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
+                    frame_data.main_command_buffer.bindVertexBuffers(0, {mesh->vertex_buffer.buffer}, {0});
+                    frame_data.main_command_buffer.bindIndexBuffer(mesh->index_buffer.buffer, 0, index_vk_type);
+                    frame_data.main_command_buffer.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
                 }
             }
         }
 
-        main_command_buffer.endRenderPass();
+        frame_data.main_command_buffer.endRenderPass();
 
         // End command buffer
-        CHECK_VK_RESULT(main_command_buffer.end(), "Failed to end command buffer");
+        CHECK_VK_RESULT(frame_data.main_command_buffer.end(), "Failed to end command buffer");
 
         vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
-        vk::SubmitInfo submit_info(1, &present_semaphore, &wait_stage, 1, &main_command_buffer, 1, &render_semaphore);
-        CHECK_VK_RESULT(graphics_queue.submit(1, &submit_info, render_fence), "Failed to submit graphics_queue");
+        vk::SubmitInfo submit_info(1, &frame_data.present_semaphore, &wait_stage, 1, &frame_data.main_command_buffer, 1, &frame_data.render_semaphore);
+        CHECK_VK_RESULT(graphics_queue.submit(1, &submit_info, frame_data.render_fence), "Failed to submit graphics_queue");
 
-        vk::PresentInfoKHR present_info(1, &render_semaphore, 1, &swap_chain, &sw_ch_image_index);
+        vk::PresentInfoKHR present_info(1, &frame_data.render_semaphore, 1, &swap_chain, &sw_ch_image_index);
         vk::Result p_result = graphics_queue.presentKHR(present_info);
         if (p_result == vk::Result::eSuboptimalKHR || p_result == vk::Result::eErrorOutOfDateKHR) {
             if (!resize_window())

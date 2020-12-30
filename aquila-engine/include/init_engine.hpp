@@ -80,10 +80,6 @@ namespace aq {
 
         vma::Allocator allocator;
 
-        // Initialized in `init_command_pool`
-
-        vk::CommandPool command_pool;
-
         // Initialized in `choose_surface_format`
 
         vk::SurfaceFormatKHR surface_format;
@@ -93,10 +89,6 @@ namespace aq {
 
         vk::RenderPass render_pass;
         vk::Format depth_format;
-
-        // Initialized in `init_command_buffers`
-
-        vk::CommandBuffer main_command_buffer;
 
         // Initialized in `init_swapchain`
 
@@ -111,11 +103,20 @@ namespace aq {
         std::vector<vk::ImageView> swap_chain_image_views;
         std::vector<vk::Framebuffer> framebuffers;
 
-        // Initialized in `init_sync_structures`
+        // Initialized in multiple functions
 
-        vk::Fence render_fence;
-        vk::Semaphore present_semaphore, render_semaphore;
+        struct FrameData {
+            vk::CommandPool command_pool;
+            vk::CommandBuffer main_command_buffer;
 
+            // Initialized in `init_sync_structures`
+
+            vk::Fence render_fence;
+            vk::Semaphore present_semaphore, render_semaphore;
+        };
+        static constexpr uint FRAME_OVERLAP = 3;
+        std::array<FrameData, FRAME_OVERLAP> frames{};
+        FrameData& get_frame_data(uint64_t frame_number) {return frames[frame_number%FRAME_OVERLAP];}
 
         bool init_vulkan_resources();
         void cleanup_vulkan_resources();
