@@ -368,7 +368,7 @@ namespace aq {
         auto [cdi_result, img_alloc] = allocator.createImage(depth_img_info, depth_img_alloc_info);
         depth_image = img_alloc;
         CHECK_VK_RESULT_R(cdi_result, false, "Failed to create depth image");
-        deletion_queue.push_function([this]() {
+        swap_chain_deletion_queue.push_function([this]() {
             allocator.destroyImage(depth_image.image, depth_image.allocation);
             depth_image.image = nullptr; depth_image.allocation = nullptr;
         });
@@ -391,7 +391,7 @@ namespace aq {
         vk::Result cdiv_result;
         std::tie(cdiv_result, depth_image_view) = device.createImageView(depth_img_view_info);
         CHECK_VK_RESULT_R(cdiv_result, false, "Failed to create depth image view");
-        deletion_queue.push_function([this]() {
+        swap_chain_deletion_queue.push_function([this]() {
             if (depth_image_view) device.destroyImageView(depth_image_view);
             depth_image_view = nullptr;
         });
