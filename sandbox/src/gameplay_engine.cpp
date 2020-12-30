@@ -33,6 +33,7 @@ void GameplayEngine::run() {
     bool quit = false;
 
     auto begin_time = std::chrono::high_resolution_clock::now();
+    uint64_t begin_frame_count = 0;
 
     while (!quit) {
         SDL_Event event;
@@ -60,11 +61,12 @@ void GameplayEngine::run() {
                 case SDLK_f: {
                     auto end_time = std::chrono::high_resolution_clock::now();
                     double seconds_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end_time - begin_time).count();
-                    double fps = aquila_engine.get_frame_number() / seconds_elapsed;
+                    double fps = (aquila_engine.get_frame_number() - begin_frame_count) / seconds_elapsed;
                     std::cout << "average fps: " << fps << '\n';
                     break;}
                 case SDLK_r:
                     begin_time = std::chrono::high_resolution_clock::now();
+                    begin_frame_count = aquila_engine.get_frame_number();
                     break;
                 default:
                     break;
