@@ -7,6 +7,9 @@
 #include <string>
 #include <chrono>
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_vulkan.h>
+
 GameplayEngine::GameplayEngine() : camera_controller(&camera) {
     glm::ivec2 size = aquila_engine.get_render_window_size();
     camera.render_window_size_changed(size.x, size.y);
@@ -45,8 +48,7 @@ void GameplayEngine::run() {
             case SDL_WINDOWEVENT:
                 switch (event.window.event) {
                 case SDL_WINDOWEVENT_RESIZED:{
-                    glm::ivec2 size = aquila_engine.get_render_window_size();
-                    camera.render_window_size_changed(size.x, size.y);
+                    camera.render_window_size_changed(event.window.data1, event.window.data2);
                     break;}
                 default:
                     break;
@@ -67,6 +69,9 @@ void GameplayEngine::run() {
                 case SDLK_r:
                     begin_time = std::chrono::high_resolution_clock::now();
                     begin_frame_count = aquila_engine.get_frame_number();
+                    break;
+                case SDLK_HOME:
+                    quit = true;
                     break;
                 default:
                     break;
@@ -145,6 +150,11 @@ void GameplayEngine::init_meshes() {
     for (auto& node : nodes) {
         node->add_node(model_loader.get_root_node());
     }
+
+
+    aq::ModelLoader model_loader2((std::string(SANDBOX_PROJECT_PATH) + "/resources/test_scene.obj").c_str());
+    aquila_engine.root_node->add_node(model_loader2.get_root_node());
+
 
     aquila_engine.upload_meshes();
 }

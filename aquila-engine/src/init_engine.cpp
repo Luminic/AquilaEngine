@@ -94,10 +94,11 @@ namespace aq {
         deletion_queue.push_function([this]() { instance.destroy(surface); });
 
         if (!vulkan_initializer.choose_gpu(device_extensions, surface)) return false;
-        gpu_properties = vulkan_initializer.get_gpu_properties();
+        gpu_support = vulkan_initializer.get_gpu_support();
+        gpu_properties = chosen_gpu.getProperties();
 
         if (!vulkan_initializer.create_device(device_extensions)) return false;
-        graphics_queue = device.getQueue(gpu_properties.graphics_present_queue_family, 0);
+        graphics_queue = device.getQueue(gpu_support.graphics_present_queue_family, 0);
 
         vma::AllocatorCreateInfo allocator_create_info({}, chosen_gpu, device);
         allocator_create_info.instance = instance;
@@ -190,7 +191,7 @@ namespace aq {
     }
 
     bool InitializationEngine::choose_surface_format() {
-        vk_init::SwapChainSupportDetails& sw_ch_support = gpu_properties.sw_ch_support;
+        vk_init::SwapChainSupportDetails& sw_ch_support = gpu_support.sw_ch_support;
 
         // Should be checked for in `rate_gpu` and ineligible GPUs should not
         // be considered but just in case something goes wrong
@@ -293,7 +294,7 @@ namespace aq {
     }
 
     bool InitializationEngine::init_swapchain() {
-        vk_init::SwapChainSupportDetails& sw_ch_support = gpu_properties.sw_ch_support;
+        vk_init::SwapChainSupportDetails& sw_ch_support = gpu_support.sw_ch_support;
 
         // Make sure the swap chain support details are up to date
         sw_ch_support.update(chosen_gpu, surface);

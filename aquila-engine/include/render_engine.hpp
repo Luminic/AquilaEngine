@@ -45,13 +45,15 @@ namespace aq {
         vk::DescriptorSetLayout global_set_layout;
         vk::DescriptorPool descriptor_pool;
         
+        unsigned char* p_cam_buff_mem;
+        AllocatedBuffer camera_buffer; // Holds GPUCameraData
         struct FrameData {
-            AllocatedBuffer camera_buffer; // Holds GPUCameraData
             vk::DescriptorSet global_descriptor;
         };
         std::array<FrameData, FRAME_OVERLAP> frame_data{};
         FrameData& get_frame_data(uint64_t frame_number) {return frame_data[frame_number%FRAME_OVERLAP];}
 
+        void draw_objects(AbstractCamera* camera, std::shared_ptr<Node>& object_hierarchy);
         uint64_t frame_number{0};
 
         friend class AquilaEngine;

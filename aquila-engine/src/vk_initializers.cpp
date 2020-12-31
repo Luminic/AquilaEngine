@@ -63,7 +63,7 @@ namespace aq {
             return true;
         }
 
-        GPUProperties::GPUProperties(
+        GPUSupport::GPUSupport(
             int score,
             std::vector<vk::ExtensionProperties> supported_device_extensions,
             std::vector<const char*> supported_requested_device_extensions,
@@ -77,7 +77,7 @@ namespace aq {
             graphics_present_queue_family(graphics_present_queue_family),
             sw_ch_support(sw_ch_support) {}
         
-        GPUProperties::GPUProperties(
+        GPUSupport::GPUSupport(
             vk::PhysicalDevice gpu,
             std::unordered_map<std::string, bool>& requested_device_extensions,
             vk::SurfaceKHR surface
@@ -227,10 +227,10 @@ namespace aq {
             
             int best_score = -1;
             for (auto& physical_device : physical_devices) {
-                vk_init::GPUProperties tmp(physical_device, device_extensions, compatible_surface);
+                vk_init::GPUSupport tmp(physical_device, device_extensions, compatible_surface);
                 if (tmp.score > best_score) {
                     gpu = physical_device;
-                    gpu_properties = tmp;
+                    gpu_support = tmp;
                     best_score = tmp.score;
                 }
             }
@@ -246,7 +246,7 @@ namespace aq {
         bool VulkanInitializer::create_device(std::unordered_map<std::string, bool>& device_extensions) {
             float queue_priorites = 1.0f;
             std::array<vk::DeviceQueueCreateInfo, 1> device_queue_create_infos{{
-                {{}, gpu_properties.graphics_present_queue_family, 1, &queue_priorites}
+                {{}, gpu_support.graphics_present_queue_family, 1, &queue_priorites}
             }};
 
             // Warn about unsupported device extensions and update `device_extensions`
@@ -254,7 +254,7 @@ namespace aq {
             // `false`
             for (auto& extension : device_extensions) {
                 extension.second = false;
-                for (auto rs_extension : gpu_properties.supported_requested_device_extensions) {
+                for (auto rs_extension : gpu_support.supported_requested_device_extensions) {
                     if (extension.first == rs_extension) {
                         extension.second = true;
                     }
@@ -266,7 +266,7 @@ namespace aq {
 
             vk::PhysicalDeviceFeatures device_features{};
 
-            vk::DeviceCreateInfo device_create_info({}, device_queue_create_infos, {}, gpu_properties.supported_requested_device_extensions, &device_features);
+            vk::DeviceCreateInfo device_create_info({}, device_queue_create_infos, {}, gpu_support.supported_requested_device_extensions, &device_features);
 
             vk::Result cd_result;
             std::tie(cd_result, device) = gpu.createDevice(device_create_info);
@@ -275,8 +275,8 @@ namespace aq {
             return true;
         }
 
-        GPUProperties VulkanInitializer::get_gpu_properties() {
-            return gpu_properties;
+        GPUSupport VulkanInitializer::get_gpu_support() {
+            return gpu_support;
         }
 
 

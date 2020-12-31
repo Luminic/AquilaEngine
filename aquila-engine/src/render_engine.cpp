@@ -9,6 +9,7 @@
 #include <fstream>
 
 #include "pipeline_builder.hpp"
+#include "vk_utility.hpp"
 
 namespace aq {
 
@@ -70,31 +71,7 @@ namespace aq {
         fo.main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
         // Actual rendering
-        fo.main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
-
-        GPUCameraData camera_data{camera->get_projection_matrix() * camera->get_view_matrix()};
-
-        vma::Allocation camera_data_alloc = fd.camera_buffer.allocation;
-        auto[mm_result, gpu_data] = allocator.mapMemory(camera_data_alloc);
-        CHECK_VK_RESULT(mm_result, "Failed to map camera buffer memory");
-        memcpy(gpu_data, &camera_data, sizeof(GPUCameraData));
-        allocator.unmapMemory(camera_data_alloc);
-
-        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});
-
-        PushConstants constants;
-        
-        for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
-            if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
-                constants.model = it.get_transform();
-                fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
-                for (auto& mesh : (*it)->get_child_meshes()) {
-                    fo.main_command_buffer.bindVertexBuffers(0, {mesh->vertex_buffer.buffer}, {0});
-                    fo.main_command_buffer.bindIndexBuffer(mesh->index_buffer.buffer, 0, index_vk_type);
-                    fo.main_command_buffer.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
-                }
-            }
-        }
+        draw_objects(camera, object_hierarchy);
 
         fo.main_command_buffer.endRenderPass();
 
@@ -210,13 +187,19 @@ namespace aq {
     }
 
     bool RenderEngine::init_descriptors() {
+        size_t camera_data_gpu_size = vk_util::pad_uniform_buffer_size(sizeof(GPUCameraData), gpu_properties.limits.minUniformBufferOffsetAlignment);
+        camera_buffer.allocate(&allocator, camera_data_gpu_size * FRAME_OVERLAP, vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu);
+        deletion_queue.push_function([this]() { camera_buffer.destroy(); });
+
+        auto[mm_result, buff_mem] = allocator.mapMemory(camera_buffer.allocation);
+        CHECK_VK_RESULT(mm_result, "Failed to map camera buffer memory");
+        p_cam_buff_mem = (unsigned char*) buff_mem;
+        deletion_queue.push_function([this]() { allocator.unmapMemory(camera_buffer.allocation); });
+
+
         std::array<vk::DescriptorSetLayoutBinding, 1> buffer_bindings{{
-            { // Camera buffer binding
-                0, // binding
-                vk::DescriptorType::eUniformBuffer,
-                1, // descriptor count
-                vk::ShaderStageFlagBits::eVertex
-            }
+            // Camera buffer binding
+            { 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex }
         }};
 
         vk::DescriptorSetLayoutCreateInfo desc_set_create_info({}, buffer_bindings);
@@ -239,8 +222,6 @@ namespace aq {
 
 
         for (uint i=0; i<FRAME_OVERLAP; ++i) {
-            frame_data[i].camera_buffer.allocate(&allocator, sizeof(GPUCameraData), vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu);
-            deletion_queue.push_function([this, i]() { frame_data[i].camera_buffer.destroy(); });
 
             vk::DescriptorSetAllocateInfo desc_set_alloc_info(descriptor_pool, 1, &global_set_layout);
 
@@ -249,7 +230,7 @@ namespace aq {
             frame_data[i].global_descriptor = desc_sets[0];
 
             std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
-                {frame_data[i].camera_buffer.buffer, 0, sizeof(GPUCameraData)}
+                {camera_buffer.buffer, camera_data_gpu_size * i, camera_data_gpu_size}
             }};
             vk::WriteDescriptorSet write_desc_set(
                 frame_data[i].global_descriptor, // dst set
@@ -263,6 +244,35 @@ namespace aq {
         }
 
         return true;
+    }
+
+    void RenderEngine::draw_objects(AbstractCamera* camera, std::shared_ptr<Node>& object_hierarchy) {
+        uint frame_index = frame_number % FRAME_OVERLAP;
+        FrameObjects& fo = get_frame_objects(frame_number);
+        FrameData& fd = get_frame_data(frame_number);
+
+        fo.main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
+
+        size_t camera_data_gpu_size = vk_util::pad_uniform_buffer_size(sizeof(GPUCameraData), gpu_properties.limits.minUniformBufferOffsetAlignment);
+        GPUCameraData camera_data{camera->get_projection_matrix() * camera->get_view_matrix()};
+        memcpy(p_cam_buff_mem + camera_data_gpu_size*frame_index, &camera_data, sizeof(GPUCameraData));
+
+        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});
+
+        PushConstants constants;
+        
+        for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
+            if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
+                constants.model = it.get_transform();
+                fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
+                for (auto& mesh : (*it)->get_child_meshes()) {
+                    fo.main_command_buffer.bindVertexBuffers(0, {mesh->combined_iv_buffer.buffer}, {mesh->vertex_data_offset});
+                    fo.main_command_buffer.bindIndexBuffer(mesh->combined_iv_buffer.buffer, 0, index_vk_type);
+
+                    fo.main_command_buffer.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
+                }
+            }
+        }
     }
 
 }

@@ -48,6 +48,7 @@ namespace aq {
         void cleanup();
 
         InitializationState get_initialization_state();
+        SDL_Window* get_window() { return window; }
 
     protected:
         InitializationState initialization_state{ InitializationState::Uninitialized };
@@ -72,10 +73,11 @@ namespace aq {
         std::unordered_map<std::string, bool> extensions;
         std::unordered_map<std::string, bool> device_extensions;
         
-        vk_init::GPUProperties gpu_properties;
+        vk_init::GPUSupport gpu_support;
+        vk::PhysicalDeviceProperties gpu_properties;
 
-        // Just an alias for `gpu_properties.graphics_present_queue_family`
-        uint32_t& graphics_queue_family{ gpu_properties.graphics_present_queue_family };
+        // Just an alias for `gpu_support.graphics_present_queue_family`
+        uint32_t& graphics_queue_family{ gpu_support.graphics_present_queue_family };
         vk::Queue graphics_queue;
 
         vma::Allocator allocator;

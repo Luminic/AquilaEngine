@@ -46,3 +46,5 @@ _deps
 
 output.txt
 run.sh
+
+!sandbox/resources/*

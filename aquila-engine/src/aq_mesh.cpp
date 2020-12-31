@@ -17,52 +17,35 @@ namespace aq {
         }
         this->allocator = allocator;
 
-        vk::BufferCreateInfo vertex_buffer_create_info(
-            {},
-            vertices.size() * sizeof(Vertex),
-            vk::BufferUsageFlagBits::eVertexBuffer,
-            vk::SharingMode::eExclusive
-        );
+        vertex_data_offset = indices.size() * sizeof(Index);
 
-        vk::BufferCreateInfo index_buffer_create_info(
+        vk::BufferCreateInfo combined_buffer_create_info(
             {},
-            indices.size() * sizeof(Index),
-            vk::BufferUsageFlagBits::eIndexBuffer,
+            indices.size()*sizeof(Index) + vertices.size()*sizeof(Vertex),
+            vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer,
             vk::SharingMode::eExclusive
         );
 
         vma::AllocationCreateInfo alloc_create_info({}, vma::MemoryUsage::eCpuToGpu);
 
-        auto[cvb_result, vbuff_alloc] = allocator->createBuffer(vertex_buffer_create_info, alloc_create_info);
-        CHECK_VK_RESULT(cvb_result, "Failed to create/allocate mesh vertex-buffer");
-        vertex_buffer.set(vbuff_alloc);
+        auto[cb_result, ivbuff_alloc] = allocator->createBuffer(combined_buffer_create_info, alloc_create_info);
+        CHECK_VK_RESULT(cb_result, "Failed to create/allocate mesh combined vertex-index buffer");
+        combined_iv_buffer.set(ivbuff_alloc);
 
-        auto[cib_result, ibuff_alloc] = allocator->createBuffer(index_buffer_create_info, alloc_create_info);
-        CHECK_VK_RESULT(cib_result, "Failed to create/allocate mesh index-buffer");
-        index_buffer.set(ibuff_alloc);
+        // Copy data into buffer
+        auto[mm_result, b_memory] = allocator->mapMemory(combined_iv_buffer.allocation);
+        CHECK_VK_RESULT(mm_result, "Failed to map combined vertex-index buffer memory");
+        memcpy(b_memory, indices.data(), indices.size() * sizeof(Index));
+        memcpy((char*)b_memory + vertex_data_offset, vertices.data(), vertices.size() * sizeof(Vertex));
+        allocator->unmapMemory(combined_iv_buffer.allocation);
 
-        // Copy vertex data into buffers
-
-        auto[mvm_result, v_memory] = allocator->mapMemory(vertex_buffer.allocation);
-        CHECK_VK_RESULT(mvm_result, "Failed to map vertex-buffer memory");
-        memcpy(v_memory, vertices.data(), vertices.size() * sizeof(Vertex));
-        allocator->unmapMemory(vertex_buffer.allocation);
-
-        auto[mim_result, i_memory] = allocator->mapMemory(index_buffer.allocation);
-        CHECK_VK_RESULT(mim_result, "Failed to map index-buffer memory");
-        memcpy(i_memory, indices.data(), indices.size() * sizeof(Index));
-        allocator->unmapMemory(index_buffer.allocation);
     }
 
     void Mesh::free() {
         if (allocator) {
-            allocator->destroyBuffer(vertex_buffer.buffer, vertex_buffer.allocation);
-            vertex_buffer.buffer = nullptr;
-            vertex_buffer.allocation = nullptr;
-
-            allocator->destroyBuffer(index_buffer.buffer, index_buffer.allocation);
-            index_buffer.buffer = nullptr;
-            index_buffer.allocation = nullptr;
+            allocator->destroyBuffer(combined_iv_buffer.buffer, combined_iv_buffer.allocation);
+            combined_iv_buffer.buffer = nullptr;
+            combined_iv_buffer.allocation = nullptr;
             
             allocator = nullptr;
         }

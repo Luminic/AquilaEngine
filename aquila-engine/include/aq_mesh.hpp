@@ -14,9 +14,12 @@ namespace aq {
         ~Mesh();
 
         std::vector<Vertex> vertices;
-        AllocatedBuffer vertex_buffer;
         std::vector<Index> indices;
-        AllocatedBuffer index_buffer;
+
+        // Stores both the index data and the vertex data in the same buffer
+        // The index data is first and the vertex data starts at `vertex_data_offset`
+        AllocatedBuffer combined_iv_buffer;
+        vk::DeviceSize vertex_data_offset;
 
         void upload(vma::Allocator* allocator, bool override_prev=false);
         // Will only free `vertex_buffer` if it was allocated through `upload`

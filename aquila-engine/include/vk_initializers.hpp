@@ -36,7 +36,7 @@ namespace aq {
         };
 
 
-        struct GPUProperties {
+        struct GPUSupport {
             int score;
 
             std::vector<vk::ExtensionProperties> supported_device_extensions;
@@ -47,7 +47,7 @@ namespace aq {
 
             SwapChainSupportDetails sw_ch_support;
 
-            GPUProperties(
+            GPUSupport(
                 int score = 0,
                 std::vector<vk::ExtensionProperties> supported_device_extensions = {},
                 std::vector<const char*> supported_requested_device_extensions = {},
@@ -56,7 +56,7 @@ namespace aq {
                 SwapChainSupportDetails sw_ch_support = {}
             );
 
-            GPUProperties(
+            GPUSupport(
                 vk::PhysicalDevice gpu,
                 std::unordered_map<std::string, bool>& requested_device_extensions,
                 vk::SurfaceKHR surface
@@ -84,13 +84,13 @@ namespace aq {
 
             bool create_device(std::unordered_map<std::string, bool>& device_extensions);
 
-            GPUProperties get_gpu_properties();
+            GPUSupport get_gpu_support();
 
         private:
             vk::Instance& instance;
             vk::PhysicalDevice& gpu;
             vk::Device& device;
-            GPUProperties gpu_properties;
+            GPUSupport gpu_support;
         };
 
 
