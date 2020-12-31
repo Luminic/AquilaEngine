@@ -1,4 +1,7 @@
-#include "vk_types.hpp"
+#ifndef UTIL_AQUILLA_VK_UTILITY
+#define UTIL_AQUILLA_VK_UTILITY
+
+#include "util/vk_types.hpp"
 
 namespace aq {
 namespace vk_util {
@@ -15,3 +18,5 @@ namespace vk_util {
 
 } // namespace vk_util
 } // namespace aq
+
+#endif

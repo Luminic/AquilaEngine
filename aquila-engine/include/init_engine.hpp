@@ -1,15 +1,18 @@
 #ifndef AQUILA_INITIALIZATION_ENGINE_HPP
 #define AQUILA_INITIALIZATION_ENGINE_HPP
 
-#include <SDL2/SDL.h>
-#include <glm/glm.hpp>
-
-#include "vk_types.hpp"
-#include "vk_initializers.hpp"
-
+#include <vector>
 #include <unordered_map>
 #include <deque>
+#include <array>
 #include <functional>
+
+#include <SDL2/SDL.h>
+
+#include <glm/glm.hpp>
+
+#include "util/vk_types.hpp"
+#include "util/vk_initializers.hpp"
 
 namespace aq {
 

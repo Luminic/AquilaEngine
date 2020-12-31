@@ -1,9 +1,9 @@
-#ifndef AQUILA_VERTEX_HPP
-#define AQUILA_VERTEX_HPP
-
-#include "vk_types.hpp"
+#ifndef SCENE_AQUILA_VERTEX_HPP
+#define SCENE_AQUILA_VERTEX_HPP
 
 #include <glm/glm.hpp>
+
+#include "util/vk_types.hpp"
 
 namespace aq {
 

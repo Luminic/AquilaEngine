@@ -1,9 +1,12 @@
-#ifndef AQUILA_MESH_HPP
-#define AQUILA_MESH_HPP
+#ifndef SCENE_AQUILA_MESH_HPP
+#define SCENE_AQUILA_MESH_HPP
 
-#include <vk_types.hpp>
-#include <aq_vertex.hpp>
+#include <vector>
+
 #include <glm/glm.hpp>
+
+#include "util/vk_types.hpp"
+#include "scene/aq_vertex.hpp"
 
 namespace aq {
 

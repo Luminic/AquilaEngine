@@ -1,7 +1,12 @@
-#ifndef AQUILA_VK_INITIALIZERS_HPP
-#define AQUILA_VK_INITIALIZERS_HPP
+#ifndef UTIL_AQUILA_VK_INITIALIZERS_HPP
+#define UTIL_AQUILA_VK_INITIALIZERS_HPP
 
-#include "vk_types.hpp"
+#include <string>
+#include <vector>
+#include <utility>
+#include <optional>
+
+#include "util/vk_types.hpp"
 
 namespace aq {
 

@@ -1,6 +1,7 @@
-#ifndef AQUILA_MODEL_LOADER_HPP
-#define AQUILA_MODEL_LOADER_HPP
+#ifndef SCENE_AQUILA_MODEL_LOADER_HPP
+#define SCENE_AQUILA_MODEL_LOADER_HPP
 
+#include "aq_mesh.hpp"
 #include "aq_node.hpp"
 
 #include <memory>

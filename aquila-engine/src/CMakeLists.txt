@@ -8,14 +8,16 @@ add_library(aquila-engine SHARED
     init_engine.cpp
     render_engine.cpp
     aquila_engine.cpp
-    vk_initializers.cpp
-    vk_types.cpp
-    pipeline_builder.cpp
-    aq_mesh.cpp
-    aq_vertex.cpp
-    aq_node.cpp
-    aq_camera.cpp
-    aq_model_loader.cpp
+
+    util/vk_initializers.cpp
+    util/vk_types.cpp
+    util/pipeline_builder.cpp
+
+    scene/aq_vertex.cpp
+    scene/aq_mesh.cpp
+    scene/aq_node.cpp
+    scene/aq_model_loader.cpp
+    scene/aq_camera.cpp
 )
 
 target_compile_definitions(aquila-engine 

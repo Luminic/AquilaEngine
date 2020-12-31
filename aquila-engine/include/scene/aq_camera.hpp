@@ -1,5 +1,5 @@
-#ifndef AQUILA_CAMERA_HPP
-#define AQUILA_CAMERA_HPP
+#ifndef SCENE_AQUILA_CAMERA_HPP
+#define SCENE_AQUILA_CAMERA_HPP
 
 #include <glm/glm.hpp>
 

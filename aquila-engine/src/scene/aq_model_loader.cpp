@@ -1,10 +1,10 @@
-#include "aq_model_loader.hpp"
+#include "scene/aq_model_loader.hpp"
+
+#include <iostream>
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
-#include <iostream>
 
 namespace aq {
 

@@ -1,4 +1,4 @@
-#include "aq_node.hpp"
+#include "scene/aq_node.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 

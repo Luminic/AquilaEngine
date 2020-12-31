@@ -1,4 +1,4 @@
-#include "aq_mesh.hpp"
+#include "scene/aq_mesh.hpp"
 
 namespace aq {
 

@@ -1,12 +1,16 @@
 #ifndef AQUILA_RENDER_ENGINE_HPP
 #define AQUILA_RENDER_ENGINE_HPP
 
-#include "init_engine.hpp"
-#include "aq_camera.hpp"
-#include "aq_mesh.hpp"
-#include "aq_node.hpp"
-
 #include <array>
+#include <memory>
+
+#include <glm/glm.hpp>
+
+#include "init_engine.hpp"
+#include "util/vk_types.hpp"
+#include "scene/aq_camera.hpp"
+#include "scene/aq_mesh.hpp"
+#include "scene/aq_node.hpp"
 
 namespace aq {
 

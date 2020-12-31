@@ -1,8 +1,8 @@
-#include "aq_camera.hpp"
-
-#include <glm/gtc/matrix_transform.hpp>
+#include "scene/aq_camera.hpp"
 
 #include <iostream>
+
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace aq {
 

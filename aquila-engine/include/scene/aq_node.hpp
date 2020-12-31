@@ -1,10 +1,14 @@
-#ifndef AQUILA_NODE_HPP
-#define AQUILA_NODE_HPP
+#ifndef SCENE_AQUILA_NODE_HPP
+#define SCENE_AQUILA_NODE_HPP
 
-#include "aq_mesh.hpp"
+#include <memory>
+#include <vector>
+#include <utility>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <memory>
+
+#include "scene/aq_mesh.hpp"
 
 namespace aq {
 

@@ -1,14 +1,16 @@
 #include "gameplay_engine.hpp"
 
-#include <aq_model_loader.hpp>
-#include <glm/glm.hpp>
-
 #include <iostream>
 #include <string>
 #include <chrono>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
+
+#include <glm/glm.hpp>
+
+#include <scene/aq_model_loader.hpp>
+
 
 GameplayEngine::GameplayEngine() : camera_controller(&camera) {
     glm::ivec2 size = aquila_engine.get_render_window_size();

@@ -1,7 +1,7 @@
 #ifndef SANDBOX_CAMERA_CONTROLLER_HPP
 #define SANDBOX_CAMERA_CONTROLLER_HPP
 
-#include "aq_camera.hpp"
+#include <scene/aq_camera.hpp>
 
 enum class CameraMovementFlags {
     NONE = 0,

@@ -1,15 +1,15 @@
 #include "render_engine.hpp"
 
+#include <iostream>
+#include <fstream>
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <iostream>
-#include <fstream>
-
-#include "pipeline_builder.hpp"
-#include "vk_utility.hpp"
+#include "util/pipeline_builder.hpp"
+#include "util/vk_utility.hpp"
 
 namespace aq {
 

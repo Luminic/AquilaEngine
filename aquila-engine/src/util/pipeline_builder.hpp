@@ -1,7 +1,9 @@
-#ifndef AQUILA_PIPELINE_BUILDER_HPP
-#define AQUILA_PIPELINE_BUILDER_HPP
+#ifndef UTIL_AQUILA_PIPELINE_BUILDER_HPP
+#define UTIL_AQUILA_PIPELINE_BUILDER_HPP
 
-#include "vk_types.hpp"
+#include <vector>
+
+#include "util/vk_types.hpp"
 
 namespace aq {
 

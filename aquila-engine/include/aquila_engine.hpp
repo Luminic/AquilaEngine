@@ -1,9 +1,11 @@
 #ifndef AQUILA_ENGINE_HPP
 #define AQUILA_ENGINE_HPP
 
+#include <memory>
+
 #include "render_engine.hpp"
-#include "aq_camera.hpp"
-#include "aq_node.hpp"
+#include "scene/aq_camera.hpp"
+#include "scene/aq_node.hpp"
 
 namespace aq {
 

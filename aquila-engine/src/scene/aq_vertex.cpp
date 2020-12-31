@@ -1,4 +1,4 @@
-#include "aq_vertex.hpp"
+#include "scene/aq_vertex.hpp"
 
 namespace aq {
 

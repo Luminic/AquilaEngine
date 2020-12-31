@@ -1,13 +1,13 @@
-#ifndef AQUILA_VK_TYPES_HPP
-#define AQUILA_VK_TYPES_HPP
+#ifndef UTIL_AQUILA_VK_TYPES_HPP
+#define UTIL_AQUILA_VK_TYPES_HPP
+
+#include <iostream>
 
 #define VULKAN_HPP_NO_EXCEPTIONS
 #define VULKAN_HPP_ASSERT_ON_RESULT
 #include <vulkan/vulkan.hpp>
 
 #include <vk_mem_alloc.hpp>
-
-#include <iostream>
 
 #define CHECK_VK_RESULT(vk_result, msg) do { \
         if ((vk_result) != vk::Result::eSuccess) { \
