@@ -91,10 +91,7 @@ namespace aq {
         VkSurfaceKHR sdl_surface;
         SDL_Vulkan_CreateSurface(window, instance, &sdl_surface);
         surface = static_cast<vk::SurfaceKHR>(sdl_surface);
-        deletion_queue.push_function([this]() {
-            if (surface) instance.destroy(surface);
-            surface = nullptr;
-        });
+        deletion_queue.push_function([this]() { instance.destroy(surface); });
 
         if (!vulkan_initializer.choose_gpu(device_extensions, surface)) return false;
         gpu_properties = vulkan_initializer.get_gpu_properties();
@@ -108,10 +105,7 @@ namespace aq {
         vk::Result ca_result;
         std::tie(ca_result, allocator) = vma::createAllocator(allocator_create_info);
         CHECK_VK_RESULT_R(ca_result, false, "Failed to create vma allocator");
-        deletion_queue.push_function([this]() {
-            if (allocator) allocator.destroy();
-            allocator = nullptr;
-        });
+        deletion_queue.push_function([this]() { allocator.destroy(); });
 
         if (!init_command_pool()) return false;
         if (!choose_surface_format()) return false;
@@ -277,10 +271,7 @@ namespace aq {
         std::tie(crp_result, render_pass) = device.createRenderPass(render_pass_info);
         CHECK_VK_RESULT_R(crp_result, false, "Failed to create render pass");
 
-        deletion_queue.push_function([this]() {
-            if (render_pass) device.destroyRenderPass(render_pass);
-            render_pass = nullptr;
-        });
+        deletion_queue.push_function([this]() { device.destroyRenderPass(render_pass); });
 
         return true;
     }
@@ -293,11 +284,7 @@ namespace aq {
 
             auto[acb_result, cmd_buffs] = device.allocateCommandBuffers(cmd_buff_alloc_info);
             CHECK_VK_RESULT_R(acb_result, false, "Failed to allocate command buffer(s)");
-
-            swap_chain_deletion_queue.push_function([this, i]() {
-                if (frame_objects[i].main_command_buffer) device.freeCommandBuffers(frame_objects[i].command_pool, frame_objects[i].main_command_buffer);
-                frame_objects[i].main_command_buffer = nullptr;
-            });
+            swap_chain_deletion_queue.push_function([this, i]() { device.freeCommandBuffers(frame_objects[i].command_pool, frame_objects[i].main_command_buffer); });
 
             frame_objects[i].main_command_buffer = cmd_buffs[0];
         }
@@ -376,10 +363,7 @@ namespace aq {
         auto [cdi_result, img_alloc] = allocator.createImage(depth_img_info, depth_img_alloc_info);
         depth_image.set(img_alloc);
         CHECK_VK_RESULT_R(cdi_result, false, "Failed to create depth image");
-        swap_chain_deletion_queue.push_function([this]() {
-            allocator.destroyImage(depth_image.image, depth_image.allocation);
-            depth_image.image = nullptr; depth_image.allocation = nullptr;
-        });
+        swap_chain_deletion_queue.push_function([this]() { allocator.destroyImage(depth_image.image, depth_image.allocation); });
 
         vk::ImageViewCreateInfo depth_img_view_info(
             {}, // flags
@@ -399,10 +383,7 @@ namespace aq {
         vk::Result cdiv_result;
         std::tie(cdiv_result, depth_image_view) = device.createImageView(depth_img_view_info);
         CHECK_VK_RESULT_R(cdiv_result, false, "Failed to create depth image view");
-        swap_chain_deletion_queue.push_function([this]() {
-            if (depth_image_view) device.destroyImageView(depth_image_view);
-            depth_image_view = nullptr;
-        });
+        swap_chain_deletion_queue.push_function([this]() { device.destroyImageView(depth_image_view); });
 
         // Actually create swapchain
         vk::SwapchainCreateInfoKHR swap_chain_create_info(
@@ -426,10 +407,7 @@ namespace aq {
         vk::Result csc_result;
         std::tie(csc_result, swap_chain) = device.createSwapchainKHR(swap_chain_create_info);
         CHECK_VK_RESULT_R(csc_result, false, "Failed to create swap chain");
-        swap_chain_deletion_queue.push_function([this]() {
-            if (swap_chain) device.destroySwapchainKHR(swap_chain);
-            swap_chain = nullptr;
-        });
+        swap_chain_deletion_queue.push_function([this]() { device.destroySwapchainKHR(swap_chain); });
 
         return true;
     }
@@ -506,10 +484,7 @@ namespace aq {
             vk::Result cf_result;
             std::tie(cf_result, frame_objects[i].render_fence) = device.createFence(fence_create_info);
             CHECK_VK_RESULT_R(cf_result, false, "Failed to create render fence");
-            swap_chain_deletion_queue.push_function([this, i]() {
-                if (frame_objects[i].render_fence) device.destroyFence(frame_objects[i].render_fence);
-                frame_objects[i].render_fence = nullptr;
-            });
+            swap_chain_deletion_queue.push_function([this, i]() { device.destroyFence(frame_objects[i].render_fence); });
 
 
             vk::SemaphoreCreateInfo semaphore_create_info{};
@@ -517,17 +492,11 @@ namespace aq {
 
             std::tie(cs_result, frame_objects[i].render_semaphore) = device.createSemaphore(semaphore_create_info);
             CHECK_VK_RESULT_R(cs_result, false, "Failed to create render semaphore");
-            swap_chain_deletion_queue.push_function([this, i]() {
-                if (frame_objects[i].render_semaphore) device.destroySemaphore(frame_objects[i].render_semaphore);
-                frame_objects[i].render_semaphore = nullptr;
-            });
+            swap_chain_deletion_queue.push_function([this, i]() { device.destroySemaphore(frame_objects[i].render_semaphore); });
 
             std::tie(cs_result, frame_objects[i].present_semaphore) = device.createSemaphore(semaphore_create_info);
             CHECK_VK_RESULT_R(cs_result, false, "Failed to create present semaphore");
-            swap_chain_deletion_queue.push_function([this, i]() {
-                if (frame_objects[i].present_semaphore) device.destroySemaphore(frame_objects[i].present_semaphore);
-                frame_objects[i].present_semaphore = nullptr;
-            });
+            swap_chain_deletion_queue.push_function([this, i]() { device.destroySemaphore(frame_objects[i].present_semaphore); });
         }
 
         return true;

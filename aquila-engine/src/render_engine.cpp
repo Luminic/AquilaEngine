@@ -159,10 +159,7 @@ namespace aq {
         vk::Result cpl_result;
         std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
         CHECK_VK_RESULT_R(cpl_result, false, "Failed to create pipeline layout");
-        deletion_queue.push_function([this]() {
-            if (triangle_pipeline_layout) device.destroyPipelineLayout(triangle_pipeline_layout);
-            triangle_pipeline_layout = nullptr;
-        });
+        deletion_queue.push_function([this]() { device.destroyPipelineLayout(triangle_pipeline_layout); });
 
         std::array<vk::DynamicState, 2> dynamic_states({vk::DynamicState::eViewport, vk::DynamicState::eScissor});
 
@@ -202,10 +199,7 @@ namespace aq {
         if (!triangle_pipeline)
             return false;
 
-        deletion_queue.push_function([this]() {
-            if (triangle_pipeline) device.destroyPipeline(triangle_pipeline);
-            triangle_pipeline = nullptr;
-        });
+        deletion_queue.push_function([this]() { device.destroyPipeline(triangle_pipeline); });
         
         return true;
     }
@@ -230,10 +224,7 @@ namespace aq {
         vk::Result cdsc_result;
         std::tie(cdsc_result, global_set_layout) = device.createDescriptorSetLayout(desc_set_create_info);
         CHECK_VK_RESULT_R(cdsc_result, false, "Failed to create global set layout");
-        deletion_queue.push_function([this]() {
-            if (global_set_layout) device.destroyDescriptorSetLayout(global_set_layout);
-            global_set_layout = nullptr;
-        });
+        deletion_queue.push_function([this]() { device.destroyDescriptorSetLayout(global_set_layout); });
 
 
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
@@ -244,10 +235,7 @@ namespace aq {
         vk::Result cdp_result;
         std::tie(cdp_result, descriptor_pool) = device.createDescriptorPool(desc_pool_create_info);
         CHECK_VK_RESULT_R(cdp_result, false, "Failed to create descriptor pool");
-        deletion_queue.push_function([this]() {
-            if (descriptor_pool) device.destroyDescriptorPool(descriptor_pool);
-            descriptor_pool = nullptr;
-        });
+        deletion_queue.push_function([this]() { device.destroyDescriptorPool(descriptor_pool); });
 
 
         for (uint i=0; i<FRAME_OVERLAP; ++i) {
