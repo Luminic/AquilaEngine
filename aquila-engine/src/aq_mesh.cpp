@@ -35,11 +35,11 @@ namespace aq {
 
         auto[cvb_result, vbuff_alloc] = allocator->createBuffer(vertex_buffer_create_info, alloc_create_info);
         CHECK_VK_RESULT(cvb_result, "Failed to create/allocate mesh vertex-buffer");
-        vertex_buffer = vbuff_alloc;
+        vertex_buffer.set(vbuff_alloc);
 
         auto[cib_result, ibuff_alloc] = allocator->createBuffer(index_buffer_create_info, alloc_create_info);
         CHECK_VK_RESULT(cib_result, "Failed to create/allocate mesh index-buffer");
-        index_buffer = ibuff_alloc;
+        index_buffer.set(ibuff_alloc);
 
         // Copy vertex data into buffers
 

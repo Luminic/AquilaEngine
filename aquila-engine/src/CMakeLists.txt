@@ -9,6 +9,7 @@ add_library(aquila-engine SHARED
     render_engine.cpp
     aquila_engine.cpp
     vk_initializers.cpp
+    vk_types.cpp
     pipeline_builder.cpp
     aq_mesh.cpp
     aq_vertex.cpp

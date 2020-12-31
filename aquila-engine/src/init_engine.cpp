@@ -182,12 +182,12 @@ namespace aq {
 
         for (uint i=0; i<FRAME_OVERLAP; ++i) {
             vk::Result ccp_result;
-            std::tie(ccp_result, frames[i].command_pool) = device.createCommandPool(command_pool_create_info);
+            std::tie(ccp_result, frame_objects[i].command_pool) = device.createCommandPool(command_pool_create_info);
             CHECK_VK_RESULT_R(ccp_result, false, "Failed to create command pool");
 
             deletion_queue.push_function([this, i](){
-                if (frames[i].command_pool) device.destroyCommandPool(frames[i].command_pool);
-                frames[i].command_pool = nullptr;
+                if (frame_objects[i].command_pool) device.destroyCommandPool(frame_objects[i].command_pool);
+                frame_objects[i].command_pool = nullptr;
             });
         }
 
@@ -289,17 +289,17 @@ namespace aq {
         vk::CommandBufferAllocateInfo cmd_buff_alloc_info(nullptr, vk::CommandBufferLevel::ePrimary, 1);
 
         for (uint i=0; i<FRAME_OVERLAP; ++i) {
-            cmd_buff_alloc_info.commandPool = frames[i].command_pool;
+            cmd_buff_alloc_info.commandPool = frame_objects[i].command_pool;
 
             auto[acb_result, cmd_buffs] = device.allocateCommandBuffers(cmd_buff_alloc_info);
             CHECK_VK_RESULT_R(acb_result, false, "Failed to allocate command buffer(s)");
 
             swap_chain_deletion_queue.push_function([this, i]() {
-                if (frames[i].main_command_buffer) device.freeCommandBuffers(frames[i].command_pool, frames[i].main_command_buffer);
-                frames[i].main_command_buffer = nullptr;
+                if (frame_objects[i].main_command_buffer) device.freeCommandBuffers(frame_objects[i].command_pool, frame_objects[i].main_command_buffer);
+                frame_objects[i].main_command_buffer = nullptr;
             });
 
-            frames[i].main_command_buffer = cmd_buffs[0];
+            frame_objects[i].main_command_buffer = cmd_buffs[0];
         }
 
         return true;
@@ -374,7 +374,7 @@ namespace aq {
         );
 
         auto [cdi_result, img_alloc] = allocator.createImage(depth_img_info, depth_img_alloc_info);
-        depth_image = img_alloc;
+        depth_image.set(img_alloc);
         CHECK_VK_RESULT_R(cdi_result, false, "Failed to create depth image");
         swap_chain_deletion_queue.push_function([this]() {
             allocator.destroyImage(depth_image.image, depth_image.allocation);
@@ -504,29 +504,29 @@ namespace aq {
 
             vk::FenceCreateInfo fence_create_info(vk::FenceCreateFlagBits::eSignaled);
             vk::Result cf_result;
-            std::tie(cf_result, frames[i].render_fence) = device.createFence(fence_create_info);
+            std::tie(cf_result, frame_objects[i].render_fence) = device.createFence(fence_create_info);
             CHECK_VK_RESULT_R(cf_result, false, "Failed to create render fence");
             swap_chain_deletion_queue.push_function([this, i]() {
-                if (frames[i].render_fence) device.destroyFence(frames[i].render_fence);
-                frames[i].render_fence = nullptr;
+                if (frame_objects[i].render_fence) device.destroyFence(frame_objects[i].render_fence);
+                frame_objects[i].render_fence = nullptr;
             });
 
 
             vk::SemaphoreCreateInfo semaphore_create_info{};
             vk::Result cs_result;
 
-            std::tie(cs_result, frames[i].render_semaphore) = device.createSemaphore(semaphore_create_info);
+            std::tie(cs_result, frame_objects[i].render_semaphore) = device.createSemaphore(semaphore_create_info);
             CHECK_VK_RESULT_R(cs_result, false, "Failed to create render semaphore");
             swap_chain_deletion_queue.push_function([this, i]() {
-                if (frames[i].render_semaphore) device.destroySemaphore(frames[i].render_semaphore);
-                frames[i].render_semaphore = nullptr;
+                if (frame_objects[i].render_semaphore) device.destroySemaphore(frame_objects[i].render_semaphore);
+                frame_objects[i].render_semaphore = nullptr;
             });
 
-            std::tie(cs_result, frames[i].present_semaphore) = device.createSemaphore(semaphore_create_info);
+            std::tie(cs_result, frame_objects[i].present_semaphore) = device.createSemaphore(semaphore_create_info);
             CHECK_VK_RESULT_R(cs_result, false, "Failed to create present semaphore");
             swap_chain_deletion_queue.push_function([this, i]() {
-                if (frames[i].present_semaphore) device.destroySemaphore(frames[i].present_semaphore);
-                frames[i].present_semaphore = nullptr;
+                if (frame_objects[i].present_semaphore) device.destroySemaphore(frame_objects[i].present_semaphore);
+                frame_objects[i].present_semaphore = nullptr;
             });
         }
 

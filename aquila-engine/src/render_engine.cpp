@@ -25,14 +25,15 @@ namespace aq {
         }
 
         uint64_t timeout{ 1'000'000'000 };
-        FrameData& frame_data = get_frame_data(frame_number);
+        FrameObjects& fo = get_frame_objects(frame_number);
+        FrameData& fd = get_frame_data(frame_number);
 
         // Wait until the GPU has finished rendering the last frame
-        CHECK_VK_RESULT( device.waitForFences(1, &frame_data.render_fence, VK_TRUE, timeout), "Failed to wait for render fence");
-        CHECK_VK_RESULT( device.resetFences(1, &frame_data.render_fence), "Failed to reset render fence");
+        CHECK_VK_RESULT( device.waitForFences(1, &fo.render_fence, VK_TRUE, timeout), "Failed to wait for render fence");
+        CHECK_VK_RESULT( device.resetFences(1, &fo.render_fence), "Failed to reset render fence");
 
         // Get next swap chain image
-        auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, frame_data.present_semaphore, {});
+        auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, fo.present_semaphore, {});
         if (ani_result == vk::Result::eSuboptimalKHR || ani_result == vk::Result::eErrorOutOfDateKHR) {
             if (!resize_window())
                 std::cerr << "Failed to recreate swapchain when resizing window." << std::endl;
@@ -42,15 +43,15 @@ namespace aq {
         }
 
         // Reset the command buffer
-        CHECK_VK_RESULT(frame_data.main_command_buffer.reset(), "Failed to reset main cmd buffer");
+        CHECK_VK_RESULT(fo.main_command_buffer.reset(), "Failed to reset main cmd buffer");
 
         // Begin command buffer
         vk::CommandBufferBeginInfo cmd_begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-        CHECK_VK_RESULT(frame_data.main_command_buffer.begin(cmd_begin_info), "Failed to begin cmd buffer");
+        CHECK_VK_RESULT(fo.main_command_buffer.begin(cmd_begin_info), "Failed to begin cmd buffer");
 
         // Set the dynamic state
-        frame_data.main_command_buffer.setViewport(0, {{0.0f, 0.0f, float(window_extent.width), float(window_extent.height), 0.0f, 1.0f}});
-        frame_data.main_command_buffer.setScissor(0, {{{0, 0}, window_extent}});
+        fo.main_command_buffer.setViewport(0, {{0.0f, 0.0f, float(window_extent.width), float(window_extent.height), 0.0f, 1.0f}});
+        fo.main_command_buffer.setScissor(0, {{{0, 0}, window_extent}});
 
         uint64_t period = 2048;
         float flash = (frame_number%period) / float(period);
@@ -66,39 +67,46 @@ namespace aq {
             clear_values
         );
 
-        frame_data.main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
+        fo.main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
         // Actual rendering
-        frame_data.main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
+        fo.main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
 
-        glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(frame_number * 0.4f), glm::vec3(0, 1, 0));
-        glm::mat4 vp = camera->get_projection_matrix() * camera->get_view_matrix();
+        GPUCameraData camera_data{camera->get_projection_matrix() * camera->get_view_matrix()};
+
+        vma::Allocation camera_data_alloc = fd.camera_buffer.allocation;
+        auto[mm_result, gpu_data] = allocator.mapMemory(camera_data_alloc);
+        CHECK_VK_RESULT(mm_result, "Failed to map camera buffer memory");
+        memcpy(gpu_data, &camera_data, sizeof(GPUCameraData));
+        allocator.unmapMemory(camera_data_alloc);
+
+        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});
 
         PushConstants constants;
         
         for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
             if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
-                constants.view_projection = vp * it.get_transform();
-                frame_data.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
+                constants.model = it.get_transform();
+                fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
                 for (auto& mesh : (*it)->get_child_meshes()) {
-                    frame_data.main_command_buffer.bindVertexBuffers(0, {mesh->vertex_buffer.buffer}, {0});
-                    frame_data.main_command_buffer.bindIndexBuffer(mesh->index_buffer.buffer, 0, index_vk_type);
-                    frame_data.main_command_buffer.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
+                    fo.main_command_buffer.bindVertexBuffers(0, {mesh->vertex_buffer.buffer}, {0});
+                    fo.main_command_buffer.bindIndexBuffer(mesh->index_buffer.buffer, 0, index_vk_type);
+                    fo.main_command_buffer.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
                 }
             }
         }
 
-        frame_data.main_command_buffer.endRenderPass();
+        fo.main_command_buffer.endRenderPass();
 
         // End command buffer
-        CHECK_VK_RESULT(frame_data.main_command_buffer.end(), "Failed to end command buffer");
+        CHECK_VK_RESULT(fo.main_command_buffer.end(), "Failed to end command buffer");
 
         vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
-        vk::SubmitInfo submit_info(1, &frame_data.present_semaphore, &wait_stage, 1, &frame_data.main_command_buffer, 1, &frame_data.render_semaphore);
-        CHECK_VK_RESULT(graphics_queue.submit(1, &submit_info, frame_data.render_fence), "Failed to submit graphics_queue");
+        vk::SubmitInfo submit_info(1, &fo.present_semaphore, &wait_stage, 1, &fo.main_command_buffer, 1, &fo.render_semaphore);
+        CHECK_VK_RESULT(graphics_queue.submit(1, &submit_info, fo.render_fence), "Failed to submit graphics_queue");
 
-        vk::PresentInfoKHR present_info(1, &frame_data.render_semaphore, 1, &swap_chain, &sw_ch_image_index);
+        vk::PresentInfoKHR present_info(1, &fo.render_semaphore, 1, &swap_chain, &sw_ch_image_index);
         vk::Result p_result = graphics_queue.presentKHR(present_info);
         if (p_result == vk::Result::eSuboptimalKHR || p_result == vk::Result::eErrorOutOfDateKHR) {
             if (!resize_window())
@@ -111,6 +119,7 @@ namespace aq {
     }
 
     bool RenderEngine::init_render_resources() {
+        if (!init_descriptors()) return false;
         if (!init_pipelines()) return false;
         return true;
     }
@@ -139,11 +148,13 @@ namespace aq {
         }
 
 
+        std::array<vk::DescriptorSetLayout, 1> set_layouts = {{global_set_layout}};
+
         std::array<vk::PushConstantRange, 1> push_constant_ranges = {
             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants))
         };
-
-        vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, {}, push_constant_ranges);
+        
+        vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, set_layouts, push_constant_ranges);
 
         vk::Result cpl_result;
         std::tie(cpl_result, triangle_pipeline_layout) = device.createPipelineLayout(pipeline_layout_create_info);
@@ -201,6 +212,68 @@ namespace aq {
 
     bool RenderEngine::resize_window() {
         if (!InitializationEngine::resize_window()) return false;
+        return true;
+    }
+
+    bool RenderEngine::init_descriptors() {
+        std::array<vk::DescriptorSetLayoutBinding, 1> buffer_bindings{{
+            { // Camera buffer binding
+                0, // binding
+                vk::DescriptorType::eUniformBuffer,
+                1, // descriptor count
+                vk::ShaderStageFlagBits::eVertex
+            }
+        }};
+
+        vk::DescriptorSetLayoutCreateInfo desc_set_create_info({}, buffer_bindings);
+
+        vk::Result cdsc_result;
+        std::tie(cdsc_result, global_set_layout) = device.createDescriptorSetLayout(desc_set_create_info);
+        CHECK_VK_RESULT_R(cdsc_result, false, "Failed to create global set layout");
+        deletion_queue.push_function([this]() {
+            if (global_set_layout) device.destroyDescriptorSetLayout(global_set_layout);
+            global_set_layout = nullptr;
+        });
+
+
+        std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
+            {vk::DescriptorType::eUniformBuffer, 10}
+        }};
+        vk::DescriptorPoolCreateInfo desc_pool_create_info({}, 10, descriptor_pool_sizes);
+
+        vk::Result cdp_result;
+        std::tie(cdp_result, descriptor_pool) = device.createDescriptorPool(desc_pool_create_info);
+        CHECK_VK_RESULT_R(cdp_result, false, "Failed to create descriptor pool");
+        deletion_queue.push_function([this]() {
+            if (descriptor_pool) device.destroyDescriptorPool(descriptor_pool);
+            descriptor_pool = nullptr;
+        });
+
+
+        for (uint i=0; i<FRAME_OVERLAP; ++i) {
+            frame_data[i].camera_buffer.allocate(&allocator, sizeof(GPUCameraData), vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu);
+            deletion_queue.push_function([this, i]() { frame_data[i].camera_buffer.destroy(); });
+
+            vk::DescriptorSetAllocateInfo desc_set_alloc_info(descriptor_pool, 1, &global_set_layout);
+
+            auto[ads_result, desc_sets] = device.allocateDescriptorSets(desc_set_alloc_info);
+            CHECK_VK_RESULT_R(ads_result, false, "Failed to allocate descriptor set");
+            frame_data[i].global_descriptor = desc_sets[0];
+
+            std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
+                {frame_data[i].camera_buffer.buffer, 0, sizeof(GPUCameraData)}
+            }};
+            vk::WriteDescriptorSet write_desc_set(
+                frame_data[i].global_descriptor, // dst set
+                0, // dst binding
+                0, // dst array element
+                vk::DescriptorType::eUniformBuffer,
+                {}, // image infos
+                buffer_infos
+            );
+            device.updateDescriptorSets({write_desc_set}, {});
+        }
+
         return true;
     }
 

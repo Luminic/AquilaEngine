@@ -24,21 +24,27 @@
 
 namespace aq {
 
-    struct AllocatedBuffer {
+    class AllocatedBuffer {
+    public:
+        AllocatedBuffer();
+
+        bool allocate(vma::Allocator* allocator, size_t allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage);
+        void destroy(); // Only works if the object was allocated with `allocate`
+
+        void set(const std::pair<vk::Buffer, vma::Allocation>& lhs);
+
         vk::Buffer buffer;
         vma::Allocation allocation;
-
-        void operator=(const std::pair<vk::Buffer, vma::Allocation>& lhs) {
-            buffer = lhs.first;
-            allocation = lhs.second;
-        }
+    
+    private:
+        vma::Allocator* allocator;
     };
 
     struct AllocatedImage {
         vk::Image image;
         vma::Allocation allocation;
 
-        void operator=(const std::pair<vk::Image, vma::Allocation>& lhs) {
+        void set(const std::pair<vk::Image, vma::Allocation>& lhs) {
             image = lhs.first;
             allocation = lhs.second;
         }

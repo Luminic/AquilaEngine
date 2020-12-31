@@ -6,13 +6,18 @@
 #include "aq_mesh.hpp"
 #include "aq_node.hpp"
 
+#include <array>
+
 namespace aq {
 
     struct PushConstants {
         glm::vec4 data;
-        glm::mat4 view_projection;
+        glm::mat4 model;
     };
 
+    struct GPUCameraData {
+        glm::mat4 view_projection;
+    };
 
     class RenderEngine : public InitializationEngine {
     public:
@@ -35,7 +40,17 @@ namespace aq {
 
         virtual bool resize_window() override; // Calls inherited `resize_window` method from `InitializationEngine`
 
-        // Misc resources
+        bool init_descriptors();
+
+        vk::DescriptorSetLayout global_set_layout;
+        vk::DescriptorPool descriptor_pool;
+        
+        struct FrameData {
+            AllocatedBuffer camera_buffer; // Holds GPUCameraData
+            vk::DescriptorSet global_descriptor;
+        };
+        std::array<FrameData, FRAME_OVERLAP> frame_data{};
+        FrameData& get_frame_data(uint64_t frame_number) {return frame_data[frame_number%FRAME_OVERLAP];}
 
         uint64_t frame_number{0};
 

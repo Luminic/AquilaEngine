@@ -105,7 +105,7 @@ namespace aq {
 
         // Initialized in multiple functions
 
-        struct FrameData {
+        struct FrameObjects {
             vk::CommandPool command_pool;
             vk::CommandBuffer main_command_buffer;
 
@@ -115,8 +115,8 @@ namespace aq {
             vk::Semaphore present_semaphore, render_semaphore;
         };
         static constexpr uint FRAME_OVERLAP = 3;
-        std::array<FrameData, FRAME_OVERLAP> frames{};
-        FrameData& get_frame_data(uint64_t frame_number) {return frames[frame_number%FRAME_OVERLAP];}
+        std::array<FrameObjects, FRAME_OVERLAP> frame_objects{};
+        FrameObjects& get_frame_objects(uint64_t frame_number) {return frame_objects[frame_number%FRAME_OVERLAP];}
 
         bool init_vulkan_resources();
         void cleanup_vulkan_resources();
