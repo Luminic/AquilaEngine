@@ -33,7 +33,8 @@ namespace aq {
     void AquilaEngine::upload_meshes() {
         for (auto& node : root_node) {
             for (auto& mesh : node->get_child_meshes()) {
-                mesh->upload(&render_engine.allocator);
+                if (!mesh->is_uploaded()) // A Mesh might appear several times in a node tree so make sure it's only uploaded once
+                    mesh->upload(&render_engine.allocator, render_engine.get_default_upload_context());
             }
         }
     }

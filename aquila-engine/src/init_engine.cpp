@@ -64,6 +64,16 @@ namespace aq {
         return initialization_state;
     }
 
+    vk_util::UploadContext InitializationEngine::get_default_upload_context() {
+        return vk_util::UploadContext{
+            upload_fence,
+            10'000'000'000, // 10 second timeout
+            upload_command_pool,
+            graphics_queue,
+            device
+        };
+    }
+
     bool InitializationEngine::init_vulkan_resources() {
         // Get extensions
 
@@ -108,7 +118,7 @@ namespace aq {
         CHECK_VK_RESULT_R(ca_result, false, "Failed to create vma allocator");
         deletion_queue.push_function([this]() { allocator.destroy(); });
 
-        if (!init_command_pool()) return false;
+        if (!init_command_pools()) return false;
         if (!choose_surface_format()) return false;
         if (!init_default_renderpass()) return false;
 
@@ -169,7 +179,7 @@ namespace aq {
         return init_swapchain_resources();
     }
 
-    bool InitializationEngine::init_command_pool() {
+    bool InitializationEngine::init_command_pools() {
         vk::CommandPoolCreateInfo command_pool_create_info(
             vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
             graphics_queue_family
@@ -185,6 +195,13 @@ namespace aq {
                 frame_objects[i].command_pool = nullptr;
             });
         }
+
+        vk::CommandPoolCreateInfo upload_command_pool_create_info({}, graphics_queue_family);
+
+        vk::Result cucp_result;
+        std::tie(cucp_result, upload_command_pool) = device.createCommandPool(upload_command_pool_create_info);
+        CHECK_VK_RESULT_R(cucp_result, false, "Failed to create upload command pool");
+        deletion_queue.push_function([this]() { device.destroyCommandPool(upload_command_pool); });
 
 
         return true;
@@ -499,6 +516,12 @@ namespace aq {
             CHECK_VK_RESULT_R(cs_result, false, "Failed to create present semaphore");
             swap_chain_deletion_queue.push_function([this, i]() { device.destroySemaphore(frame_objects[i].present_semaphore); });
         }
+
+        vk::FenceCreateInfo upload_fence_create_info{};
+        vk::Result cuf_result;
+        std::tie(cuf_result, upload_fence) = device.createFence(upload_fence_create_info);
+        CHECK_VK_RESULT_R(cuf_result, false, "Failed to create upload fence");
+        swap_chain_deletion_queue.push_function([this]() { device.destroyFence(upload_fence); });
 
         return true;
     }

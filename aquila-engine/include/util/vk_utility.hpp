@@ -16,6 +16,16 @@ namespace vk_util {
         return aligned_size;
     }
 
+    struct UploadContext {
+        vk::Fence wait_fence;
+        uint64_t timeout;
+        vk::CommandPool command_pool;
+        vk::Queue queue;
+        vk::Device device;
+    };
+
+    bool immediate_submit(std::function<void(vk::CommandBuffer)>&& function, const UploadContext& ctx);
+
 } // namespace vk_util
 } // namespace aq
 

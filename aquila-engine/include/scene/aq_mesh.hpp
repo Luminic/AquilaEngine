@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 
 #include "util/vk_types.hpp"
+#include "util/vk_utility.hpp"
 #include "scene/aq_vertex.hpp"
 
 namespace aq {
@@ -24,11 +25,16 @@ namespace aq {
         AllocatedBuffer combined_iv_buffer;
         vk::DeviceSize vertex_data_offset;
 
-        void upload(vma::Allocator* allocator, bool override_prev=false);
+        void upload(vma::Allocator* allocator);
+        void upload(vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
         // Will only free `vertex_buffer` if it was allocated through `upload`
         void free(); 
 
+        bool is_uploaded() {return bool(combined_iv_buffer.buffer);}
+
     private:
+        AllocatedBuffer create_buffer_with_iv_data(vk::BufferUsageFlags buffer_usage, vma::MemoryUsage memory_usage);
+
         vma::Allocator* allocator = nullptr;
     };
 
