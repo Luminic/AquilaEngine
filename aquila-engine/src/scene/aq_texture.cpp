@@ -28,7 +28,7 @@ namespace aq {
         size.width = width;
         size.height = height;
 
-        if (!image.upload_from_data(data, width, height, allocator, upload_context)) return false;
+        if (!image.upload(data, width, height, allocator, upload_context)) return false;
 
         vk::ImageViewCreateInfo image_view_create_info(
             {},

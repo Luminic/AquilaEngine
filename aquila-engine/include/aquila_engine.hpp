@@ -6,6 +6,7 @@
 #include "render_engine.hpp"
 #include "scene/aq_camera.hpp"
 #include "scene/aq_node.hpp"
+#include "scene/aq_material.hpp"
 
 namespace aq {
 
@@ -30,6 +31,7 @@ namespace aq {
 
     private:
         RenderEngine render_engine;
+        std::shared_ptr<Material> placeholder_material;
     };
 
 }

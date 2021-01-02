@@ -12,9 +12,10 @@ namespace aq {
         if (render_engine.init() != aq::RenderEngine::InitializationState::Initialized)
 		    std::cerr << "Failed to initialize render engine." << std::endl;
 
-        Texture texture;
-        texture.upload_from_file("/home/l/C++/Vulkan/Vulkan-Engine/sandbox/resources/happy-tree.png", &render_engine.allocator, render_engine.get_default_upload_context());
-        texture.destroy();
+        placeholder_material = std::make_shared<Material>();
+        placeholder_material->properties.albedo = glm::vec4(1.0f,1.0f,0.0f,1.0f);
+        
+        render_engine.material_manager.add_material(placeholder_material);
     }
 
     AquilaEngine::~AquilaEngine() {

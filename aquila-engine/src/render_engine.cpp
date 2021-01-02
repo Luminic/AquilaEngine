@@ -33,6 +33,9 @@ namespace aq {
         CHECK_VK_RESULT( device.waitForFences(1, &fo.render_fence, VK_TRUE, timeout), "Failed to wait for render fence");
         CHECK_VK_RESULT( device.resetFences(1, &fo.render_fence), "Failed to reset render fence");
 
+        // Update the material manager now that the frame has finished rendering
+        material_manager.update(frame_number % FRAME_OVERLAP);
+
         // Get next swap chain image
         auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, fo.present_semaphore, {});
         if (ani_result == vk::Result::eSuboptimalKHR || ani_result == vk::Result::eErrorOutOfDateKHR) {
@@ -96,13 +99,16 @@ namespace aq {
     }
 
     bool RenderEngine::init_render_resources() {
+        if (!material_manager.init(100, FRAME_OVERLAP, gpu_properties.limits.minUniformBufferOffsetAlignment, &allocator, get_default_upload_context())) return false;
         if (!init_data()) return false;
         if (!init_descriptors()) return false;
         if (!init_pipelines()) return false;
+
         return true;
     }
 
     void RenderEngine::cleanup_render_resources() {
+        material_manager.destroy();
         deletion_queue.flush();
     }
 
@@ -126,7 +132,7 @@ namespace aq {
         }
 
 
-        std::array<vk::DescriptorSetLayout, 2> set_layouts = {{global_set_layout, texture_set_layout}};
+        std::array<vk::DescriptorSetLayout, 2> set_layouts = {{global_set_layout, material_manager.get_descriptor_set_layout()}};
 
         std::array<vk::PushConstantRange, 1> push_constant_ranges = {
             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants))
@@ -232,6 +238,7 @@ namespace aq {
 
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
             {vk::DescriptorType::eUniformBuffer, 10},
+            {vk::DescriptorType::eUniformBufferDynamic, 10},
             {vk::DescriptorType::eCombinedImageSampler, 10}
         }};
         vk::DescriptorPoolCreateInfo desc_pool_create_info({}, 10, descriptor_pool_sizes);
@@ -251,6 +258,7 @@ namespace aq {
         deletion_queue.push_function([this]() { device.destroyDescriptorSetLayout(global_set_layout); });
 
         // Texture desc. set layout
+        /*
         std::array<vk::DescriptorSetLayoutBinding, 1> texture_bindings{{
             { 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment }
         }};
@@ -260,6 +268,7 @@ namespace aq {
         std::tie(ctds_res, texture_set_layout) = device.createDescriptorSetLayout(tex_desc_set_create_info);
         CHECK_VK_RESULT_R(ctds_res, false, "Failed to create texture set layout");
         deletion_queue.push_function([this]() { device.destroyDescriptorSetLayout(texture_set_layout); });
+        */
 
         // Descriptor Sets
 
@@ -291,8 +300,10 @@ namespace aq {
             device.updateDescriptorSets({write_desc_set}, {});
         }
 
-        // Texture descriptor set
+        material_manager.create_descriptor_set(descriptor_pool);
 
+        // Texture descriptor set
+        /*
         vk::DescriptorSetAllocateInfo tex_desc_set_alloc_info(descriptor_pool, 1, &texture_set_layout);
 
         auto[atds_res, tex_desc_sets] = device.allocateDescriptorSets(tex_desc_set_alloc_info);
@@ -311,6 +322,7 @@ namespace aq {
             {} // buffer infos
         );
         device.updateDescriptorSets({write_tex_desc_set}, {});
+        */
 
         return true;
     }
@@ -327,7 +339,6 @@ namespace aq {
         memcpy(p_cam_buff_mem + camera_data_gpu_size*frame_index, &camera_data, sizeof(GPUCameraData));
 
         fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});
-        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {default_texture_descriptor}, {});
 
         PushConstants constants;
         
@@ -336,6 +347,8 @@ namespace aq {
                 constants.model = it.get_transform();
                 fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
                 for (auto& mesh : (*it)->get_child_meshes()) {
+                    fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set()}, {0});
+
                     fo.main_command_buffer.bindVertexBuffers(0, {mesh->combined_iv_buffer.buffer}, {mesh->vertex_data_offset});
                     fo.main_command_buffer.bindIndexBuffer(mesh->combined_iv_buffer.buffer, 0, index_vk_type);
 

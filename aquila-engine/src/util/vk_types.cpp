@@ -25,6 +25,17 @@ namespace aq {
         return true;
     }
 
+    bool AllocatedBuffer::upload(void* data, vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage) {
+        if (!allocate(allocator, allocation_size, usage, memory_usage)) return false;
+
+        auto[mm_result, b_memory] = allocator->mapMemory(allocation);
+        CHECK_VK_RESULT_R(mm_result, false, "Failed to map mesh buffer memory");
+        memcpy(b_memory, data, allocation_size);
+        allocator->unmapMemory(allocation);
+
+        return true;
+    }
+
     void AllocatedBuffer::destroy() {
         if (allocator) {
             allocator->destroyBuffer(buffer, allocation);
@@ -44,7 +55,7 @@ namespace aq {
 
     AllocatedImage::AllocatedImage() {}
 
-    bool AllocatedImage::upload_from_data(void* texture_data, int width, int height, vma::Allocator* allocator, const vk_util::UploadContext& upload_context) {
+    bool AllocatedImage::upload(void* texture_data, int width, int height, vma::Allocator* allocator, const vk_util::UploadContext& upload_context) {
         this->allocator = allocator;
 
         vk::DeviceSize image_size = width * height * 4;
@@ -53,16 +64,7 @@ namespace aq {
         // Create the staging buffer
 
         AllocatedBuffer staging_buffer;
-        if (!staging_buffer.allocate(allocator, image_size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly)) return false;
-
-        // Copy image data into the staging buffer
-
-        auto[mm_res, buffer_data] = allocator->mapMemory(staging_buffer.allocation);
-        CHECK_VK_RESULT_R(mm_res, false, "Failed to map image staging buffer memory");
-
-        memcpy(buffer_data, texture_data, image_size);
-
-        allocator->unmapMemory(staging_buffer.allocation);
+        if (!staging_buffer.upload(texture_data, allocator, image_size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly)) return false;
 
         // Create the image buffer
 

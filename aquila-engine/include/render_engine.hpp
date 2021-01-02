@@ -12,6 +12,7 @@
 #include "scene/aq_mesh.hpp"
 #include "scene/aq_node.hpp"
 #include "scene/aq_texture.hpp"
+#include "scene/aq_material.hpp"
 
 namespace aq {
 
@@ -35,6 +36,8 @@ namespace aq {
         glm::ivec2 get_render_window_size() const {return {window_extent.width, window_extent.height};};
 
         uint64_t get_frame_number() const {return frame_number;}
+
+        MaterialManager material_manager;
 
     protected:
         virtual bool init_render_resources() override;
@@ -60,8 +63,8 @@ namespace aq {
 
         vk::DescriptorPool descriptor_pool;
         vk::DescriptorSetLayout global_set_layout;
-        vk::DescriptorSetLayout texture_set_layout;
-        vk::DescriptorSet default_texture_descriptor;
+        // vk::DescriptorSetLayout texture_set_layout;
+        // vk::DescriptorSet default_texture_descriptor;
         
         struct FrameData {
             vk::DescriptorSet global_descriptor;

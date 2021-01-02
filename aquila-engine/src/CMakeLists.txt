@@ -21,6 +21,7 @@ add_library(aquila-engine SHARED
     scene/aq_camera.cpp
 
     scene/aq_texture.cpp
+    scene/aq_material.cpp
 )
 
 target_compile_definitions(aquila-engine 
