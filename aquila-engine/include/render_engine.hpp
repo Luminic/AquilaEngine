@@ -33,11 +33,14 @@ namespace aq {
         void draw(AbstractCamera* camera, std::shared_ptr<Node> object_hierarchy);
 
         glm::ivec2 get_render_window_size() const {return {window_extent.width, window_extent.height};};
+
         uint64_t get_frame_number() const {return frame_number;}
 
     protected:
         virtual bool init_render_resources() override;
-        void cleanup_render_resources() final; // Cannot be overriden or the resources would leak
+        // If redefined in child class, either `RenderEngine::cleanup_render_resources` MUST still be called 
+        // or `init_render_resources` should also be redefined in order to not leak resources
+        virtual void cleanup_render_resources() override;
 
         bool init_pipelines();
         vk::PipelineLayout triangle_pipeline_layout;

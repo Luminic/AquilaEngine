@@ -7,8 +7,6 @@ namespace aq {
 
     Texture::Texture() {}
 
-    // bool upload_from_file(const char* path, vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
-
     bool Texture::upload_from_file(const char* path, vma::Allocator* allocator, const vk_util::UploadContext& upload_context) {
         this->path = std::string(path);
 

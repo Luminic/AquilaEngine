@@ -160,7 +160,7 @@ namespace aq {
         if (!init_command_buffers()) return false;
         if (!init_swapchain()) return false;
         if (!init_framebuffers()) return false;
-        if (!init_sync_structures()) return false;
+        if (!init_swap_chain_sync_structures()) return false;
 
         initialization_state = InitializationState::Initialized;
 
@@ -501,7 +501,7 @@ namespace aq {
         return true;
     }
 
-    bool InitializationEngine::init_sync_structures() {
+    bool InitializationEngine::init_swap_chain_sync_structures() {
         for (uint i=0; i<FRAME_OVERLAP; ++i) {
 
             vk::FenceCreateInfo fence_create_info(vk::FenceCreateFlagBits::eSignaled);

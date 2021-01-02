@@ -45,7 +45,6 @@ namespace aq {
             FailedInitialization // Misc/Unknown failure state
         };
 
-        // Returns `true` if initialization succeeds and `false` otherwise
         InitializationState init();
         bool wait_idle();
         void cleanup();
@@ -56,7 +55,9 @@ namespace aq {
     protected:
         InitializationState initialization_state{ InitializationState::Uninitialized };
 
-        // Updated in `init_swapchain`; should always be correct
+        // Updated in `init_swapchain`
+
+        // Should usually be correct but if the window was just resized, might be one frame behind
         vk::Extent2D window_extent{ 1700, 900 };
 
         // Initialized in `init`
@@ -74,7 +75,7 @@ namespace aq {
         // Before, the `bool` replresents if the extension is required
         // Not all possible extensions will be in `extensions`; only the requested ones
         std::unordered_map<std::string, bool> extensions;
-        std::unordered_map<std::string, bool> device_extensions;
+        std::unordered_map<std::string, bool> device_extensions; // Same behavior as `extensions`
         
         vk_init::GPUSupport gpu_support;
         vk::PhysicalDeviceProperties gpu_properties;
@@ -104,17 +105,17 @@ namespace aq {
         // Initialized in `init_framebuffers`
 
         uint32_t image_count{0};
-        std::vector<vk::Image> swap_chain_images;
-        std::vector<vk::ImageView> swap_chain_image_views;
-        std::vector<vk::Framebuffer> framebuffers;
+        std::vector<vk::Image> swap_chain_images; // Should be sized `image_count` after initialization
+        std::vector<vk::ImageView> swap_chain_image_views; // Should be sized `image_count` after initialization
+        std::vector<vk::Framebuffer> framebuffers; // Should be sized `image_count` after initialization
 
         // Initialized in multiple functions
 
         struct FrameObjects {
-            vk::CommandPool command_pool;
-            vk::CommandBuffer main_command_buffer;
+            vk::CommandPool command_pool; // Initialized in `init_command_pools`
+            vk::CommandBuffer main_command_buffer; // Initialized in `init_command_buffers`
 
-            // Initialized in `init_sync_structures`
+            // Initialized in `init_swap_chain_sync_structures`
 
             vk::Fence render_fence;
             vk::Semaphore present_semaphore, render_semaphore;
@@ -125,7 +126,9 @@ namespace aq {
 
         vk::CommandPool upload_command_pool;
         vk::Fence upload_fence; // Initialized in `init_vulkan_resources` (needed for `init_render_resources`)
-        vk_util::UploadContext get_default_upload_context();
+
+        // Usually used for `immediate_submit`
+        vk_util::UploadContext get_default_upload_context(); 
 
         bool init_vulkan_resources();
         void cleanup_vulkan_resources();
@@ -143,7 +146,7 @@ namespace aq {
         bool init_command_buffers();
         bool init_swapchain();
         bool init_framebuffers();
-        bool init_sync_structures();
+        bool init_swap_chain_sync_structures();
     
     private:
         DeletionQueue deletion_queue;
