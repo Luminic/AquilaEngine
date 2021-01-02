@@ -6,7 +6,6 @@
 #include <glm/glm.hpp>
 
 #include "util/vk_types.hpp"
-#include "util/vk_utility.hpp"
 #include "scene/aq_vertex.hpp"
 
 namespace aq {
@@ -25,7 +24,9 @@ namespace aq {
         AllocatedBuffer combined_iv_buffer;
         vk::DeviceSize vertex_data_offset;
 
+        // Uploads the mesh on CPU visible memory
         void upload(vma::Allocator* allocator);
+        // Uploads the mesh on GPU local memory (not necessarily CPU visible)
         void upload(vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
         // Will only free `vertex_buffer` if it was allocated through `upload`
         void free(); 

@@ -96,6 +96,7 @@ namespace aq {
     }
 
     bool RenderEngine::init_render_resources() {
+        if (!init_data()) return false;
         if (!init_descriptors()) return false;
         if (!init_pipelines()) return false;
         return true;
@@ -125,7 +126,7 @@ namespace aq {
         }
 
 
-        std::array<vk::DescriptorSetLayout, 1> set_layouts = {{global_set_layout}};
+        std::array<vk::DescriptorSetLayout, 2> set_layouts = {{global_set_layout, texture_set_layout}};
 
         std::array<vk::PushConstantRange, 1> push_constant_ranges = {
             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants))
@@ -186,40 +187,86 @@ namespace aq {
         return true;
     }
 
-    bool RenderEngine::init_descriptors() {
+    bool RenderEngine::init_data() {
+
+        // Camera Buffer
+
         size_t camera_data_gpu_size = vk_util::pad_uniform_buffer_size(sizeof(GPUCameraData), gpu_properties.limits.minUniformBufferOffsetAlignment);
-        camera_buffer.allocate(&allocator, camera_data_gpu_size * FRAME_OVERLAP, vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu);
+        if (!camera_buffer.allocate(&allocator, camera_data_gpu_size * FRAME_OVERLAP, vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu)) return false;
         deletion_queue.push_function([this]() { camera_buffer.destroy(); });
 
         auto[mm_result, buff_mem] = allocator.mapMemory(camera_buffer.allocation);
-        CHECK_VK_RESULT(mm_result, "Failed to map camera buffer memory");
+        CHECK_VK_RESULT_R(mm_result, false, "Failed to map camera buffer memory");
         p_cam_buff_mem = (unsigned char*) buff_mem;
         deletion_queue.push_function([this]() { allocator.unmapMemory(camera_buffer.allocation); });
 
+        // Sampler
 
+        vk::SamplerCreateInfo sampler_create_info(
+            {}, // flags
+            vk::Filter::eLinear,
+            vk::Filter::eLinear,
+            vk::SamplerMipmapMode::eNearest,
+            vk::SamplerAddressMode::eClampToEdge,
+            vk::SamplerAddressMode::eClampToEdge,
+            vk::SamplerAddressMode::eClampToEdge,
+            0.0f, // mip lod bias
+            VK_FALSE, // anisotropy enable
+            0.0f // max anisotropy
+        );
+
+        vk::Result cs_result;
+        std::tie(cs_result, default_sampler) = device.createSampler(sampler_create_info);
+        CHECK_VK_RESULT_R(cs_result, false, "Failed to create sampler");
+        deletion_queue.push_function([this]() { device.destroySampler(default_sampler); });
+
+        if (!placeholder_texture.upload_from_file("/home/l/C++/Vulkan/Vulkan-Engine/sandbox/resources/happy-tree.png", &allocator, get_default_upload_context())) return false;
+        deletion_queue.push_function([this]() { placeholder_texture.destroy(); });
+
+        return true;
+    }
+
+    bool RenderEngine::init_descriptors() {
+
+        // Descriptor Pool
+
+        std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
+            {vk::DescriptorType::eUniformBuffer, 10},
+            {vk::DescriptorType::eCombinedImageSampler, 10}
+        }};
+        vk::DescriptorPoolCreateInfo desc_pool_create_info({}, 10, descriptor_pool_sizes);
+
+        // Descriptor Set Layouts
+
+        // Global desc. set layout
         std::array<vk::DescriptorSetLayoutBinding, 1> buffer_bindings{{
             // Camera buffer binding
             { 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex }
         }};
-
         vk::DescriptorSetLayoutCreateInfo desc_set_create_info({}, buffer_bindings);
 
-        vk::Result cdsc_result;
-        std::tie(cdsc_result, global_set_layout) = device.createDescriptorSetLayout(desc_set_create_info);
-        CHECK_VK_RESULT_R(cdsc_result, false, "Failed to create global set layout");
+        vk::Result cds_result;
+        std::tie(cds_result, global_set_layout) = device.createDescriptorSetLayout(desc_set_create_info);
+        CHECK_VK_RESULT_R(cds_result, false, "Failed to create global set layout");
         deletion_queue.push_function([this]() { device.destroyDescriptorSetLayout(global_set_layout); });
 
-
-        std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
-            {vk::DescriptorType::eUniformBuffer, 10}
+        // Texture desc. set layout
+        std::array<vk::DescriptorSetLayoutBinding, 1> texture_bindings{{
+            { 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment }
         }};
-        vk::DescriptorPoolCreateInfo desc_pool_create_info({}, 10, descriptor_pool_sizes);
+        vk::DescriptorSetLayoutCreateInfo tex_desc_set_create_info({}, texture_bindings);
+
+        vk::Result ctds_res;
+        std::tie(ctds_res, texture_set_layout) = device.createDescriptorSetLayout(tex_desc_set_create_info);
+        CHECK_VK_RESULT_R(ctds_res, false, "Failed to create texture set layout");
+        deletion_queue.push_function([this]() { device.destroyDescriptorSetLayout(texture_set_layout); });
+
+        // Descriptor Sets
 
         vk::Result cdp_result;
         std::tie(cdp_result, descriptor_pool) = device.createDescriptorPool(desc_pool_create_info);
         CHECK_VK_RESULT_R(cdp_result, false, "Failed to create descriptor pool");
         deletion_queue.push_function([this]() { device.destroyDescriptorPool(descriptor_pool); });
-
 
         for (uint i=0; i<FRAME_OVERLAP; ++i) {
 
@@ -229,6 +276,7 @@ namespace aq {
             CHECK_VK_RESULT_R(ads_result, false, "Failed to allocate descriptor set");
             frame_data[i].global_descriptor = desc_sets[0];
 
+            size_t camera_data_gpu_size = vk_util::pad_uniform_buffer_size(sizeof(GPUCameraData), gpu_properties.limits.minUniformBufferOffsetAlignment);
             std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
                 {camera_buffer.buffer, camera_data_gpu_size * i, camera_data_gpu_size}
             }};
@@ -242,6 +290,27 @@ namespace aq {
             );
             device.updateDescriptorSets({write_desc_set}, {});
         }
+
+        // Texture descriptor set
+
+        vk::DescriptorSetAllocateInfo tex_desc_set_alloc_info(descriptor_pool, 1, &texture_set_layout);
+
+        auto[atds_res, tex_desc_sets] = device.allocateDescriptorSets(tex_desc_set_alloc_info);
+        CHECK_VK_RESULT_R(atds_res, false, "Failed to allocate descriptor set");
+        default_texture_descriptor = tex_desc_sets[0];
+
+        std::array<vk::DescriptorImageInfo, 1> image_infos{{
+            placeholder_texture.get_image_info(default_sampler)
+        }};
+        vk::WriteDescriptorSet write_tex_desc_set(
+            default_texture_descriptor, // dst set
+            0, // dst binding
+            0, // dst array element
+            vk::DescriptorType::eCombinedImageSampler,
+            image_infos, // image infos
+            {} // buffer infos
+        );
+        device.updateDescriptorSets({write_tex_desc_set}, {});
 
         return true;
     }
@@ -258,6 +327,7 @@ namespace aq {
         memcpy(p_cam_buff_mem + camera_data_gpu_size*frame_index, &camera_data, sizeof(GPUCameraData));
 
         fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});
+        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {default_texture_descriptor}, {});
 
         PushConstants constants;
         

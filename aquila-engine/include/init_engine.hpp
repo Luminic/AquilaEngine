@@ -13,7 +13,6 @@
 
 #include "util/vk_types.hpp"
 #include "util/vk_initializers.hpp"
-#include "util/vk_utility.hpp"
 
 namespace aq {
 
@@ -125,7 +124,7 @@ namespace aq {
         FrameObjects& get_frame_objects(uint64_t frame_number) {return frame_objects[frame_number%FRAME_OVERLAP];}
 
         vk::CommandPool upload_command_pool;
-        vk::Fence upload_fence; // Initialized in `init_sync_structures`
+        vk::Fence upload_fence; // Initialized in `init_vulkan_resources` (needed for `init_render_resources`)
         vk_util::UploadContext get_default_upload_context();
 
         bool init_vulkan_resources();

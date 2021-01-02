@@ -122,10 +122,10 @@ void GameplayEngine::init_meshes() {
     triangle_mesh->vertices[2].position = { 1.0f, 1.0f, 0.0f, 1.0f};
     triangle_mesh->vertices[3].position = {-1.0f, 1.0f, 0.0f, 1.0f};
 
-    triangle_mesh->vertices[0].color = {1.0f, 1.0f, 0.0f, 0.0f};
-    triangle_mesh->vertices[1].color = {1.0f, 0.0f, 1.0f, 0.0f};
-    triangle_mesh->vertices[2].color = {0.0f, 0.0f, 1.0f, 0.0f};
-    triangle_mesh->vertices[3].color = {1.0f, 1.0f, 1.0f, 0.0f};
+    triangle_mesh->vertices[0].tex_coord = {0.0f, 0.0f};
+    triangle_mesh->vertices[1].tex_coord = {1.0f, 0.0f};
+    triangle_mesh->vertices[2].tex_coord = {1.0f, 1.0f};
+    triangle_mesh->vertices[3].tex_coord = {0.0f, 1.0f};
 
     triangle_mesh->indices = {
         0, 1, 3,
@@ -157,6 +157,10 @@ void GameplayEngine::init_meshes() {
     aq::ModelLoader model_loader2((std::string(SANDBOX_PROJECT_PATH) + "/resources/test_scene.obj").c_str());
     aquila_engine.root_node->add_node(model_loader2.get_root_node());
 
+    std::shared_ptr<aq::Node> rect = std::make_shared<aq::Node>();
+    rect->position.y = -3.0f;
+    rect->add_mesh(triangle_mesh);
+    aquila_engine.root_node->add_node(rect);
 
     aquila_engine.upload_meshes();
 }

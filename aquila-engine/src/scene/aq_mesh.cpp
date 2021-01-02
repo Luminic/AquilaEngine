@@ -1,5 +1,7 @@
 #include "scene/aq_mesh.hpp"
 
+#include "util/vk_utility.hpp"
+
 namespace aq {
 
     Mesh::Mesh() {}

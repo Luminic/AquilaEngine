@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/aquila-engine/src",
                 "${workspaceFolder}/aquila-engine/include",
-                "${workspaceFolder}/aquila-engine/third-party/vma",
+                "${workspaceFolder}/aquila-engine/third-party/**",
                 "${workspaceFolder}/sandbox/src",
                 "${workspaceFolder}/sandbox/include"
             ],

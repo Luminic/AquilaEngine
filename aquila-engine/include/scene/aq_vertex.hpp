@@ -11,12 +11,12 @@ namespace aq {
         Vertex(
             glm::vec4 position = glm::vec4(0.0f,0.0f,0.0f,1.0f), 
             glm::vec4 normal = glm::vec4(0.0f), 
-            glm::vec4 color = glm::vec4(0.0f)
+            glm::vec2 tex_coord = glm::vec4(0.0f)
         );
 
         glm::vec4 position;
         glm::vec4 normal;
-        glm::vec4 color;
+        glm::vec2 tex_coord;
 
         struct InputDescription;
         static InputDescription get_vertex_description();

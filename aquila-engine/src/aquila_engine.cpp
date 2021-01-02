@@ -4,11 +4,17 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "scene/aq_texture.hpp"
+
 namespace aq {
 
     AquilaEngine::AquilaEngine() : root_node(std::make_shared<Node>()) {
         if (render_engine.init() != aq::RenderEngine::InitializationState::Initialized)
 		    std::cerr << "Failed to initialize render engine." << std::endl;
+
+        Texture texture;
+        texture.upload_from_file("/home/l/C++/Vulkan/Vulkan-Engine/sandbox/resources/happy-tree.png", &render_engine.allocator, render_engine.get_default_upload_context());
+        texture.destroy();
     }
 
     AquilaEngine::~AquilaEngine() {

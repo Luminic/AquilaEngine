@@ -19,6 +19,8 @@ add_library(aquila-engine SHARED
     scene/aq_node.cpp
     scene/aq_model_loader.cpp
     scene/aq_camera.cpp
+
+    scene/aq_texture.cpp
 )
 
 target_compile_definitions(aquila-engine 
@@ -40,4 +42,5 @@ target_link_libraries(aquila-engine
     PRIVATE Vulkan::Vulkan
     PRIVATE assimp
     PUBLIC vma
+    PRIVATE stb-image
 )

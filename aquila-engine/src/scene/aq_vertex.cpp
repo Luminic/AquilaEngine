@@ -2,8 +2,8 @@
 
 namespace aq {
 
-    Vertex::Vertex(glm::vec4 position, glm::vec4 normal, glm::vec4 color)
-    : position(position), normal(normal), color(color) {}
+    Vertex::Vertex(glm::vec4 position, glm::vec4 normal, glm::vec2 tex_coord)
+    : position(position), normal(normal), tex_coord(tex_coord) {}
 
     Vertex::InputDescription Vertex::get_vertex_description() {
         vk::VertexInputBindingDescription main_binding(0, sizeof(Vertex), vk::VertexInputRate::eVertex);
@@ -25,8 +25,8 @@ namespace aq {
         vk::VertexInputAttributeDescription color_attribute(
             2, // location
             0, // binding
-            vk::Format::eR32G32B32A32Sfloat,
-            offsetof(Vertex, color)
+            vk::Format::eR32G32Sfloat,
+            offsetof(Vertex, tex_coord)
         );
 
         return InputDescription{{main_binding}, {position_attribute, normal_attribute, color_attribute}};

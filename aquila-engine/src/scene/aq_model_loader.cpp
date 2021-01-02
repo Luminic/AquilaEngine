@@ -64,10 +64,13 @@ namespace aq {
 
         aq_mesh->vertices.reserve(ai_mesh->mNumVertices);
         for (uint i=0; i<ai_mesh->mNumVertices; ++i) {
+            glm::vec2 tex_coords(0.0f);
+            if (ai_mesh->mTextureCoords[0])
+                tex_coords = glm::vec2(ai_to_glm(ai_mesh->mTextureCoords[0][i]));
             aq_mesh->vertices.emplace_back(
                 glm::vec4(ai_to_glm(ai_mesh->mVertices[i]), 1.0f),
                 glm::vec4(ai_to_glm(ai_mesh->mNormals[i]), 0.0f),
-                glm::vec4(ai_to_glm(ai_mesh->mNormals[i]), 0.0f) // Make the color the normal for now
+                tex_coords
             );
         }
 

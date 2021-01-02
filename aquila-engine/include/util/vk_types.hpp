@@ -24,11 +24,21 @@
 
 namespace aq {
 
+    namespace vk_util {
+        struct UploadContext {
+            vk::Fence wait_fence;
+            uint64_t timeout;
+            vk::CommandPool command_pool;
+            vk::Queue queue;
+            vk::Device device;
+        };
+    }
+
     class AllocatedBuffer {
     public:
         AllocatedBuffer();
 
-        bool allocate(vma::Allocator* allocator, size_t allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage);
+        bool allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage);
         void destroy(); // Only works if the object was allocated with `allocate`
 
         void set(const std::pair<vk::Buffer, vma::Allocation>& lhs);
@@ -41,13 +51,18 @@ namespace aq {
     };
 
     struct AllocatedImage {
+        AllocatedImage();
+
+        bool upload_from_data(void* data, int width, int height, vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
+        void destroy(); // Only works if the object was allocated/uploaded with a member function
+
+        void set(const std::pair<vk::Image, vma::Allocation>& lhs);
+
         vk::Image image;
         vma::Allocation allocation;
 
-        void set(const std::pair<vk::Image, vma::Allocation>& lhs) {
-            image = lhs.first;
-            allocation = lhs.second;
-        }
+    private:
+        vma::Allocator* allocator;
     };
 
 }

@@ -11,6 +11,7 @@
 #include "scene/aq_camera.hpp"
 #include "scene/aq_mesh.hpp"
 #include "scene/aq_node.hpp"
+#include "scene/aq_texture.hpp"
 
 namespace aq {
 
@@ -44,13 +45,21 @@ namespace aq {
 
         virtual bool resize_window() override; // Calls inherited `resize_window` method from `InitializationEngine`
 
-        bool init_descriptors();
+        bool init_data();
 
-        vk::DescriptorSetLayout global_set_layout;
-        vk::DescriptorPool descriptor_pool;
-        
         unsigned char* p_cam_buff_mem;
         AllocatedBuffer camera_buffer; // Holds GPUCameraData
+
+        vk::Sampler default_sampler;
+        Texture placeholder_texture;
+
+        bool init_descriptors();
+
+        vk::DescriptorPool descriptor_pool;
+        vk::DescriptorSetLayout global_set_layout;
+        vk::DescriptorSetLayout texture_set_layout;
+        vk::DescriptorSet default_texture_descriptor;
+        
         struct FrameData {
             vk::DescriptorSet global_descriptor;
         };
