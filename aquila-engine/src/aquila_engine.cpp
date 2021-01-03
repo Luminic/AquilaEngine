@@ -11,15 +11,7 @@ namespace aq {
     AquilaEngine::AquilaEngine() : root_node(std::make_shared<Node>()) {
         if (render_engine.init() != aq::RenderEngine::InitializationState::Initialized)
 		    std::cerr << "Failed to initialize render engine." << std::endl;
-
-        placeholder_material = std::make_shared<Material>();
-        placeholder_material->properties.albedo = glm::vec4(1.0f,1.0f,0.0f,1.0f);
-
-        placeholder_material2 = std::make_shared<Material>();
-        placeholder_material2->properties.albedo = glm::vec4(1.0f,0.0f,0.0f,1.0f);
         
-        render_engine.material_manager.add_material(placeholder_material);
-        render_engine.material_manager.add_material(placeholder_material2);
     }
 
     AquilaEngine::~AquilaEngine() {
@@ -47,6 +39,13 @@ namespace aq {
                 if (!mesh->is_uploaded()) // A Mesh might appear several times in a node tree so make sure it's only uploaded once
                     mesh->upload(&render_engine.allocator, render_engine.get_default_upload_context());
             }
+        }
+    }
+
+    void AquilaEngine::upload_materials(const std::vector<std::shared_ptr<Material>>& materials) {
+        for (auto& material : materials) {
+            if (!material->is_managed())
+                render_engine.material_manager.add_material(material);
         }
     }
 

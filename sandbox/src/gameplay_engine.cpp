@@ -163,4 +163,6 @@ void GameplayEngine::init_meshes() {
     aquila_engine.root_node->add_node(rect);
 
     aquila_engine.upload_meshes();
+    aquila_engine.upload_materials(model_loader.get_materials());
+    aquila_engine.upload_materials(model_loader2.get_materials());
 }

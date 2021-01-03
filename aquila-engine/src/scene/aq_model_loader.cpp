@@ -22,6 +22,10 @@ namespace aq {
         return glm::vec3(from.x, from.y, from.z);
     }
 
+    inline glm::vec3 ai_to_glm(const aiColor3D& from) {
+        return glm::vec3(from.r, from.g, from.b);
+    }
+
     inline glm::quat ai_to_glm(const aiQuaternion& from) {
         return glm::quat(from.w, from.x, from.y, from.z);
     }
@@ -35,11 +39,9 @@ namespace aq {
             return;
         }
 
-        root_node = process_node(scene->mRootNode, scene);
-    }
+        aq_materials.resize(scene->mNumMaterials);
 
-    std::shared_ptr<Node> ModelLoader::get_root_node() {
-        return root_node;
+        root_node = process_node(scene->mRootNode, scene);
     }
 
     std::shared_ptr<Node> ModelLoader::process_node(aiNode* ai_node, const aiScene* ai_scene) {
@@ -62,6 +64,7 @@ namespace aq {
     std::shared_ptr<Mesh> ModelLoader::process_mesh(struct aiMesh* ai_mesh, const struct aiScene* ai_scene) {
         std::shared_ptr<Mesh> aq_mesh = std::make_shared<Mesh>();
 
+        // Load vertices
         aq_mesh->vertices.reserve(ai_mesh->mNumVertices);
         for (uint i=0; i<ai_mesh->mNumVertices; ++i) {
             glm::vec2 tex_coords(0.0f);
@@ -74,6 +77,7 @@ namespace aq {
             );
         }
 
+        // Load indices
         aq_mesh->indices.reserve(ai_mesh->mNumFaces * 3);
         for (uint i=0; i<ai_mesh->mNumFaces; ++i) {
             aiFace ai_face = ai_mesh->mFaces[i];
@@ -81,6 +85,19 @@ namespace aq {
             for (uint j=0; j<3; ++j) {
                 aq_mesh->indices.push_back(ai_face.mIndices[j]);
             }
+        }
+
+        // Load material
+        if (aq_materials[ai_mesh->mMaterialIndex]) {
+            aq_mesh->material = aq_materials[ai_mesh->mMaterialIndex];
+        } else {
+            aq_mesh->material = std::make_shared<Material>();
+            aq_materials[ai_mesh->mMaterialIndex] = aq_mesh->material;
+
+            aiMaterial* material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
+            aiColor3D color;
+            material->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+            aq_mesh->material->properties.albedo = glm::vec4(ai_to_glm(color), 1.0f);
         }
 
         return aq_mesh;

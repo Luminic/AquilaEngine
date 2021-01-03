@@ -2,11 +2,13 @@
 #define SCENE_AQUILA_MESH_HPP
 
 #include <vector>
+#include <memory>
 
 #include <glm/glm.hpp>
 
 #include "util/vk_types.hpp"
 #include "scene/aq_vertex.hpp"
+#include "scene/aq_material.hpp"
 
 namespace aq {
 
@@ -18,6 +20,8 @@ namespace aq {
 
         std::vector<Vertex> vertices;
         std::vector<Index> indices;
+
+        std::shared_ptr<Material> material;
 
         // Stores both the index data and the vertex data in the same buffer
         // The index data is first and the vertex data starts at `vertex_data_offset`

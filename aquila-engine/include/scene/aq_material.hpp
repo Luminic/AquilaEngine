@@ -21,12 +21,14 @@ namespace aq {
         Material();
         ~Material();
 
+        bool is_managed() { return manager != nullptr; }
+
         struct Properties {
             // w is whether or not to use the corresponding texture
-            glm::vec4 albedo; 
-            glm::vec4 roughness;
-            glm::vec4 metalness;
-            glm::vec4 ambient_occlusion;
+            glm::vec4 albedo = glm::vec4(1.0f);
+            glm::vec4 roughness = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+            glm::vec4 metalness = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+            glm::vec4 ambient = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
         };
         Properties properties;
 
@@ -40,8 +42,8 @@ namespace aq {
         };
 
     private:
-        MaterialManager* manager; // set by `MaterialManager`
-        size_t material_index; // set by `MaterialManager`
+        MaterialManager* manager = nullptr; // set by `MaterialManager`
+        size_t material_index = 0; // set by `MaterialManager`
 
         friend class MaterialManager;
     };
@@ -74,7 +76,9 @@ namespace aq {
         // Gets the offset for the virtual buffer for `frame`
         vk::DeviceSize get_buffer_offset(uint frame);
         // Gets the offset for the virtual buffer for `material` on `frame`
-        vk::DeviceSize get_material_offset(std::shared_ptr<Material> material, uint frame);
+        // A null `material` or a material not managed by `this` will return material 0 (not
+        // necessarily index 0 depending on `frame`)
+        uint get_material_index(std::shared_ptr<Material> material, uint frame);
 
         void create_descriptor_set(vk::DescriptorPool desc_pool);
 
@@ -83,6 +87,8 @@ namespace aq {
 
         vk::DescriptorSetLayout get_descriptor_set_layout() { return desc_set_layout; };
         vk::DescriptorSet get_descriptor_set() { return desc_set; };
+
+        std::shared_ptr<Material> default_material;
 
     private:
         AllocatedBuffer material_buffer; // Has `allocation_size` memory

@@ -258,19 +258,6 @@ namespace aq {
         CHECK_VK_RESULT_R(cds_result, false, "Failed to create global set layout");
         deletion_queue.push_function([this]() { device.destroyDescriptorSetLayout(global_set_layout); });
 
-        // Texture desc. set layout
-        /*
-        std::array<vk::DescriptorSetLayoutBinding, 1> texture_bindings{{
-            { 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment }
-        }};
-        vk::DescriptorSetLayoutCreateInfo tex_desc_set_create_info({}, texture_bindings);
-
-        vk::Result ctds_res;
-        std::tie(ctds_res, texture_set_layout) = device.createDescriptorSetLayout(tex_desc_set_create_info);
-        CHECK_VK_RESULT_R(ctds_res, false, "Failed to create texture set layout");
-        deletion_queue.push_function([this]() { device.destroyDescriptorSetLayout(texture_set_layout); });
-        */
-
         // Descriptor Sets
 
         vk::Result cdp_result;
@@ -303,28 +290,6 @@ namespace aq {
 
         material_manager.create_descriptor_set(descriptor_pool);
 
-        // Texture descriptor set
-        /*
-        vk::DescriptorSetAllocateInfo tex_desc_set_alloc_info(descriptor_pool, 1, &texture_set_layout);
-
-        auto[atds_res, tex_desc_sets] = device.allocateDescriptorSets(tex_desc_set_alloc_info);
-        CHECK_VK_RESULT_R(atds_res, false, "Failed to allocate descriptor set");
-        default_texture_descriptor = tex_desc_sets[0];
-
-        std::array<vk::DescriptorImageInfo, 1> image_infos{{
-            placeholder_texture.get_image_info(default_sampler)
-        }};
-        vk::WriteDescriptorSet write_tex_desc_set(
-            default_texture_descriptor, // dst set
-            0, // dst binding
-            0, // dst array element
-            vk::DescriptorType::eCombinedImageSampler,
-            image_infos, // image infos
-            {} // buffer infos
-        );
-        device.updateDescriptorSets({write_tex_desc_set}, {});
-        */
-
         return true;
     }
 
@@ -344,17 +309,12 @@ namespace aq {
 
         PushConstants constants;
         
-        uint i=0;
         for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
             if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
                 constants.model = it.get_transform();
                 fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4), &constants);
                 for (auto& mesh : (*it)->get_child_meshes()) {
-                    // uint offset = (uint32_t) material_manager.get_buffer_offset(frame_index);
-                    // offset += ((i++)%2) * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), gpu_properties.limits.minUniformBufferOffsetAlignment);
-
-                    // fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set()}, {offset});
-                    constants.material_index = (i++)%2;
+                    constants.material_index = material_manager.get_material_index(mesh->material, frame_index);
                     fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, material_index), sizeof(uint), (unsigned char*)&constants + offsetof(PushConstants, material_index));
 
                     fo.main_command_buffer.bindVertexBuffers(0, {mesh->combined_iv_buffer.buffer}, {mesh->vertex_data_offset});

@@ -6,13 +6,17 @@
 
 namespace aq {
 
-    Material::Material() : manager(nullptr) {}
+    Material::Material() {}
 
     Material::~Material() {}
 
 
-
-    MaterialManager::MaterialManager() {}
+    MaterialManager::MaterialManager() {
+        // Default (error) material
+        default_material = std::make_shared<Material>();
+        default_material->properties.albedo = glm::vec4(1.0f, 0.0f, 1.0f, 0.0f);
+        add_material(default_material); // guaranteed to be first
+    }
 
     bool MaterialManager::init(size_t nr_materials, uint frame_overlap, vk::DeviceSize min_ubo_alignment, vma::Allocator* allocator, vk_util::UploadContext upload_context) {
         this->nr_materials = nr_materials;
@@ -46,12 +50,10 @@ namespace aq {
         vk::Result cs_result;
         std::tie(cs_result, default_sampler) = ctx.device.createSampler(sampler_create_info);
         CHECK_VK_RESULT_R(cs_result, false, "Failed to create sampler");
-        // deletion_queue.push_function([this]() { device.destroySampler(default_sampler); });
 
         // Placeholder texture
 
         if (!placeholder_texture.upload_from_file("/home/l/C++/Vulkan/Vulkan-Engine/sandbox/resources/happy-tree.png", allocator, ctx)) return false;
-        // deletion_queue.push_function([this]() { placeholder_texture.destroy(); });
 
         return true;
     }
@@ -89,8 +91,10 @@ namespace aq {
         return frame * nr_materials * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
     }
 
-    vk::DeviceSize MaterialManager::get_material_offset(std::shared_ptr<Material> material, uint frame) {
-        return (frame * nr_materials + material->material_index) * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
+    uint MaterialManager::get_material_index(std::shared_ptr<Material> material, uint frame) {
+        if (material && material->manager == this)
+            return frame * nr_materials + material->material_index;
+        return frame * nr_materials;
     }
 
     void MaterialManager::create_descriptor_set(vk::DescriptorPool desc_pool) {
@@ -105,7 +109,6 @@ namespace aq {
         vk::Result ctds_res;
         std::tie(ctds_res, desc_set_layout) = ctx.device.createDescriptorSetLayout(desc_set_create_info);
         CHECK_VK_RESULT(ctds_res, "Failed to create texture set layout");
-        // deletion_queue.push_function([this]() { ctx.device.destroyDescriptorSetLayout(desc_set_layout); });
 
         // Descriptor sets
 

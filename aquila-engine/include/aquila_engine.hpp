@@ -2,6 +2,9 @@
 #define AQUILA_ENGINE_HPP
 
 #include <memory>
+#include <vector>
+
+#include <glm/glm.hpp>
 
 #include "render_engine.hpp"
 #include "scene/aq_camera.hpp"
@@ -22,6 +25,8 @@ namespace aq {
         // into the gpu for later draw calls.
         // Does nothing to meshes that already have been uploaded
         void upload_meshes();
+        // Adds the materials to the material manager
+        void upload_materials(const std::vector<std::shared_ptr<Material>>& materials);
 
         glm::ivec2 get_render_window_size() const {return render_engine.get_render_window_size();}
         uint64_t get_frame_number() const {return render_engine.get_frame_number();}
@@ -31,8 +36,6 @@ namespace aq {
 
     private:
         RenderEngine render_engine;
-        std::shared_ptr<Material> placeholder_material;
-        std::shared_ptr<Material> placeholder_material2;
     };
 
 }

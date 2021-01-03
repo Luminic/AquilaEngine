@@ -63,8 +63,6 @@ namespace aq {
 
         vk::DescriptorPool descriptor_pool;
         vk::DescriptorSetLayout global_set_layout;
-        // vk::DescriptorSetLayout texture_set_layout;
-        // vk::DescriptorSet default_texture_descriptor;
         
         struct FrameData {
             vk::DescriptorSet global_descriptor;
