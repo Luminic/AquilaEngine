@@ -99,7 +99,7 @@ namespace aq {
     }
 
     bool RenderEngine::init_render_resources() {
-        if (!material_manager.init(100, FRAME_OVERLAP, gpu_properties.limits.minUniformBufferOffsetAlignment, &allocator, get_default_upload_context())) return false;
+        if (!material_manager.init(100, FRAME_OVERLAP, &allocator, get_default_upload_context())) return false;
         if (!init_data()) return false;
         if (!init_descriptors()) return false;
         if (!init_pipelines()) return false;

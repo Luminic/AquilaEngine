@@ -1,5 +1,6 @@
 #include "scene/aq_material.hpp"
 
+#include <algorithm>
 #include <iostream>
 
 #include "util/vk_utility.hpp"
@@ -18,14 +19,13 @@ namespace aq {
         add_material(default_material); // guaranteed to be first
     }
 
-    bool MaterialManager::init(size_t nr_materials, uint frame_overlap, vk::DeviceSize min_ubo_alignment, vma::Allocator* allocator, vk_util::UploadContext upload_context) {
+    bool MaterialManager::init(size_t nr_materials, uint frame_overlap, vma::Allocator* allocator, vk_util::UploadContext upload_context) {
         this->nr_materials = nr_materials;
         this->frame_overlap = frame_overlap;
-        this->min_ubo_alignment = min_ubo_alignment;
         this->allocator = allocator;
         this->ctx = upload_context;
 
-        allocation_size = frame_overlap * nr_materials * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
+        allocation_size = frame_overlap * nr_materials * sizeof(Material::Properties);
         material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
 
         auto[mm_res, buff_mem] = allocator->mapMemory(material_buffer.allocation);
@@ -70,16 +70,17 @@ namespace aq {
     void MaterialManager::update(uint safe_frame) {
         auto it=updated_materials.begin();
         while (it != updated_materials.end()) {
-            it->second.insert(safe_frame);
+            if (std::find(std::begin(it->second), std::end(it->second), safe_frame) == std::end(it->second))
+                it->second.push_back(safe_frame);
     
             std::shared_ptr<Material> mat = it->first.lock();
             if (mat) {
                 vk::DeviceSize offset = get_buffer_offset(safe_frame);
-                offset += mat->material_index * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
+                offset += mat->material_index * sizeof(Material::Properties);
                 memcpy(p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
             }
 
-            if (it->second.size() == frame_overlap || it->first.expired()) {
+            if (it->second.size() >= frame_overlap || it->first.expired()) {
                 it = updated_materials.erase(it);
             } else {
                 ++it;
@@ -88,7 +89,7 @@ namespace aq {
     }
 
     vk::DeviceSize MaterialManager::get_buffer_offset(uint frame) {
-        return frame * nr_materials * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
+        return frame * nr_materials * sizeof(Material::Properties);
     }
 
     uint MaterialManager::get_material_index(std::shared_ptr<Material> material, uint frame) {

@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <list>
-#include <set>
 #include <memory>
 
 #include <glm/glm.hpp>
@@ -24,11 +23,11 @@ namespace aq {
         bool is_managed() { return manager != nullptr; }
 
         struct Properties {
-            // w is whether or not to use the corresponding texture
-            glm::vec4 albedo = glm::vec4(1.0f);
-            glm::vec4 roughness = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
-            glm::vec4 metalness = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-            glm::vec4 ambient = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+            // last element is whether or not to use the corresponding texture
+            glm::vec4 albedo = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+            glm::vec2 roughness = glm::vec2(0.5f, 0.0f);
+            glm::vec2 metalness = glm::vec2(0.0f, 0.0f);
+            glm::vec4 ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
         };
         Properties properties;
 
@@ -61,7 +60,6 @@ namespace aq {
         bool init(
             size_t nr_materials, 
             uint frame_overlap, 
-            vk::DeviceSize min_ubo_alignment, 
             vma::Allocator* allocator, 
             vk_util::UploadContext upload_context
         );
@@ -97,10 +95,10 @@ namespace aq {
 
         std::vector<std::weak_ptr<Material>> materials;
         // Materials are pushed into both `updated_materials` and `materials` when added
-        // When `update` is called, `safe_frame` is added to the set for each material in `updated_materials`
-        // Once the set contains all the frames (size = `frame_overlap`) the material had been fully uploaded and is
+        // When `update` is called, `safe_frame` is added to the uint vector for each material in `updated_materials`
+        // Once the uint vector contains all the frames (size = `frame_overlap`) the material had been fully uploaded and is
         // removed from the list
-        std::list<std::pair<std::weak_ptr<Material>, std::set<uint>>> updated_materials;
+        std::list<std::pair<std::weak_ptr<Material>, std::vector<uint>>> updated_materials;
 
         size_t nr_materials;
         uint frame_overlap;

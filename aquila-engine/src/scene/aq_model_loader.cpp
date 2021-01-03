@@ -61,6 +61,22 @@ namespace aq {
         return aq_node;
     }
 
+    // Gets the texture path from `ai_material` with the type `ai_tex_type` and creates a new
+    // texture in `aq_material` with that path
+    // Returns false if a texture of type `ai_tex_type` doesn't exist in `ai_material`
+    bool transfer_corresponding_texture(
+        aiTextureType ai_tex_type, Material::TextureType aq_tex_type, 
+        aiMaterial* ai_material, std::shared_ptr<Material> aq_material) 
+    {
+        if (ai_material->GetTextureCount(ai_tex_type) >= 1) {
+            aiString ai_tex_path;
+            ai_material->GetTexture(ai_tex_type, 0, &ai_tex_path);
+            aq_material->textures[aq_tex_type] = std::make_shared<Texture>(ai_tex_path.C_Str());
+            return true;
+        }
+        return false;
+    }
+
     std::shared_ptr<Mesh> ModelLoader::process_mesh(struct aiMesh* ai_mesh, const struct aiScene* ai_scene) {
         std::shared_ptr<Mesh> aq_mesh = std::make_shared<Mesh>();
 
@@ -94,10 +110,24 @@ namespace aq {
             aq_mesh->material = std::make_shared<Material>();
             aq_materials[ai_mesh->mMaterialIndex] = aq_mesh->material;
 
-            aiMaterial* material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
+            aiMaterial* ai_material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
             aiColor3D color;
-            material->Get(AI_MATKEY_COLOR_DIFFUSE, color);
-            aq_mesh->material->properties.albedo = glm::vec4(ai_to_glm(color), 1.0f);
+            ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+            aq_mesh->material->properties.albedo = glm::vec4(ai_to_glm(color), 0.0f);
+
+            if (transfer_corresponding_texture(aiTextureType_BASE_COLOR, Material::Albedo, ai_material, aq_mesh->material))
+                aq_mesh->material->properties.albedo.a = 1.0f;
+            
+            if (transfer_corresponding_texture(aiTextureType_DIFFUSE_ROUGHNESS, Material::Roughness, ai_material, aq_mesh->material))
+                aq_mesh->material->properties.roughness.g = 1.0f;
+
+            if (transfer_corresponding_texture(aiTextureType_METALNESS, Material::Metalness, ai_material, aq_mesh->material))
+                aq_mesh->material->properties.metalness.g = 1.0f;
+
+            if (transfer_corresponding_texture(aiTextureType_AMBIENT_OCCLUSION, Material::AmbientOcclusion, ai_material, aq_mesh->material))
+                aq_mesh->material->properties.ambient.a = 1.0f;
+
+            if (transfer_corresponding_texture(aiTextureType_NORMAL_CAMERA, Material::Normal, ai_material, aq_mesh->material));
         }
 
         return aq_mesh;

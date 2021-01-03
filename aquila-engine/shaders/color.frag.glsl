@@ -8,8 +8,8 @@ layout (set=1, binding=0) uniform sampler2D tex;
 
 struct MaterialProperties{
 	vec4 albedo; 
-	vec4 roughness;
-	vec4 metalness;
+	vec2 roughness;
+	vec2 metalness;
 	vec4 ambient_occlusion;
 };
 
