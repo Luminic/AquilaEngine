@@ -18,7 +18,10 @@
             "cppStandard": "c++17",
             "intelliSenseMode": "gcc-x64",
             // "configurationProvider": "ms-vscode.cmake-tools",
-            "compilerArgs": []
+            "compilerArgs": [],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true
+            }
         }
     ],
     "version": 4

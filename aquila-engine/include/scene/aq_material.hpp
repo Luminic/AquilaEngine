@@ -41,8 +41,12 @@ namespace aq {
         };
 
     private:
-        MaterialManager* manager = nullptr; // set by `MaterialManager`
-        size_t material_index = 0; // set by `MaterialManager`
+        MaterialManager* manager = nullptr; // Set by `MaterialManager`
+        size_t material_index = 0; // Set by `MaterialManager`
+        // Set by `MaterialManager`
+        // The indexes of the virtual buffers the data has been uploaded to
+        // Not necessarily sorted
+        std::vector<uint> uploaded_buffers; 
 
         friend class MaterialManager;
     };
@@ -59,6 +63,7 @@ namespace aq {
         // rendering all frames
         bool init(
             size_t nr_materials, 
+            uint max_nr_textures,
             uint frame_overlap, 
             vma::Allocator* allocator, 
             vk_util::UploadContext upload_context
@@ -66,6 +71,7 @@ namespace aq {
 
         // Material memory will not actually be uploaded to the GPU until `update` is called
         void add_material(std::shared_ptr<Material> material);
+        void update_material(std::shared_ptr<Material> material);
 
         // `safe_frame` must be finished rendering (usually the frame about to be rendered onto)
         // Uploads material memory to the buffer for `safe_frame`
@@ -74,17 +80,16 @@ namespace aq {
         // Gets the offset for the virtual buffer for `frame`
         vk::DeviceSize get_buffer_offset(uint frame);
         // Gets the offset for the virtual buffer for `material` on `frame`
-        // A null `material` or a material not managed by `this` will return material 0 (not
-        // necessarily index 0 depending on `frame`)
-        uint get_material_index(std::shared_ptr<Material> material, uint frame);
+        // A null `material` or a material not managed by `this` will return material 0
+        uint get_material_index(std::shared_ptr<Material> material);
 
-        void create_descriptor_set(vk::DescriptorPool desc_pool);
+        void create_descriptor_set();
 
         // Destroy material buffer, descriptor layout, and descriptor sets
         void destroy();
 
         vk::DescriptorSetLayout get_descriptor_set_layout() { return desc_set_layout; };
-        vk::DescriptorSet get_descriptor_set() { return desc_set; };
+        vk::DescriptorSet get_descriptor_set(uint frame) { return desc_sets[frame]; };
 
         std::shared_ptr<Material> default_material;
 
@@ -98,9 +103,13 @@ namespace aq {
         // When `update` is called, `safe_frame` is added to the uint vector for each material in `updated_materials`
         // Once the uint vector contains all the frames (size = `frame_overlap`) the material had been fully uploaded and is
         // removed from the list
-        std::list<std::pair<std::weak_ptr<Material>, std::vector<uint>>> updated_materials;
+        std::list<std::weak_ptr<Material>> updated_materials;
+
+        std::vector<std::shared_ptr<Texture>> textures;
+        
 
         size_t nr_materials;
+        uint max_nr_textures;
         uint frame_overlap;
         vk::DeviceSize min_ubo_alignment;
         vma::Allocator* allocator;
@@ -109,8 +118,9 @@ namespace aq {
         vk::Sampler default_sampler;
         Texture placeholder_texture;
 
+        vk::DescriptorPool desc_pool; // Separate pool for material data
         vk::DescriptorSetLayout desc_set_layout;
-        vk::DescriptorSet desc_set;
+        std::vector<vk::DescriptorSet> desc_sets;
     };
 
 }

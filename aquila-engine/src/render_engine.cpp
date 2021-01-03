@@ -13,7 +13,7 @@
 
 namespace aq {
 
-    RenderEngine::RenderEngine() {}
+    RenderEngine::RenderEngine(uint max_nr_textures) : max_nr_textures(max_nr_textures) {}
 
     RenderEngine::~RenderEngine() {}
 
@@ -99,7 +99,7 @@ namespace aq {
     }
 
     bool RenderEngine::init_render_resources() {
-        if (!material_manager.init(100, FRAME_OVERLAP, &allocator, get_default_upload_context())) return false;
+        if (!material_manager.init(100, max_nr_textures, FRAME_OVERLAP, &allocator, get_default_upload_context())) return false;
         if (!init_data()) return false;
         if (!init_descriptors()) return false;
         if (!init_pipelines()) return false;
@@ -239,10 +239,16 @@ namespace aq {
 
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
             {vk::DescriptorType::eUniformBuffer, 10},
-            {vk::DescriptorType::eUniformBufferDynamic, 10},
+            {vk::DescriptorType::eSampler, 1},
+            {vk::DescriptorType::eSampledImage, 1},
             {vk::DescriptorType::eCombinedImageSampler, 10}
         }};
         vk::DescriptorPoolCreateInfo desc_pool_create_info({}, 10, descriptor_pool_sizes);
+
+        vk::Result cdp_result;
+        std::tie(cdp_result, descriptor_pool) = device.createDescriptorPool(desc_pool_create_info);
+        CHECK_VK_RESULT_R(cdp_result, false, "Failed to create descriptor pool");
+        deletion_queue.push_function([this]() { device.destroyDescriptorPool(descriptor_pool); });
 
         // Descriptor Set Layouts
 
@@ -259,11 +265,6 @@ namespace aq {
         deletion_queue.push_function([this]() { device.destroyDescriptorSetLayout(global_set_layout); });
 
         // Descriptor Sets
-
-        vk::Result cdp_result;
-        std::tie(cdp_result, descriptor_pool) = device.createDescriptorPool(desc_pool_create_info);
-        CHECK_VK_RESULT_R(cdp_result, false, "Failed to create descriptor pool");
-        deletion_queue.push_function([this]() { device.destroyDescriptorPool(descriptor_pool); });
 
         for (uint i=0; i<FRAME_OVERLAP; ++i) {
 
@@ -288,7 +289,7 @@ namespace aq {
             device.updateDescriptorSets({write_desc_set}, {});
         }
 
-        material_manager.create_descriptor_set(descriptor_pool);
+        material_manager.create_descriptor_set();
 
         return true;
     }
@@ -305,7 +306,7 @@ namespace aq {
         memcpy(p_cam_buff_mem + camera_data_gpu_size*frame_index, &camera_data, sizeof(GPUCameraData));
 
         fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});
-        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set()}, {});
+        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set(frame_index)}, {});
 
         PushConstants constants;
         
@@ -314,7 +315,7 @@ namespace aq {
                 constants.model = it.get_transform();
                 fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4), &constants);
                 for (auto& mesh : (*it)->get_child_meshes()) {
-                    constants.material_index = material_manager.get_material_index(mesh->material, frame_index);
+                    constants.material_index = material_manager.get_material_index(mesh->material);
                     fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, material_index), sizeof(uint), (unsigned char*)&constants + offsetof(PushConstants, material_index));
 
                     fo.main_command_buffer.bindVertexBuffers(0, {mesh->combined_iv_buffer.buffer}, {mesh->vertex_data_offset});

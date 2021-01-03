@@ -61,11 +61,11 @@ set_target_properties(vma PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/third-party/vma"
 )
 
-# Import target "aquila-engine" for configuration ""
-set_property(TARGET aquila-engine APPEND PROPERTY IMPORTED_CONFIGURATIONS NOCONFIG)
+# Import target "aquila-engine" for configuration "Debug"
+set_property(TARGET aquila-engine APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
 set_target_properties(aquila-engine PROPERTIES
-  IMPORTED_LOCATION_NOCONFIG "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/lib/libaquila-engine.so"
-  IMPORTED_SONAME_NOCONFIG "libaquila-engine.so"
+  IMPORTED_LOCATION_DEBUG "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/lib/libaquila-engine.so"
+  IMPORTED_SONAME_DEBUG "libaquila-engine.so"
   )
 
 # This file does not depend on other imported targets which have

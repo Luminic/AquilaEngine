@@ -17,7 +17,7 @@ namespace aq {
 
         bool is_uploaded() { return bool(image.image); };
         const std::string& get_path() { return path; };
-        vk::DescriptorImageInfo get_image_info(vk::Sampler sampler);
+        vk::DescriptorImageInfo get_image_info(vk::Sampler sampler=nullptr);
 
         AllocatedImage image;
         vk::ImageView image_view;

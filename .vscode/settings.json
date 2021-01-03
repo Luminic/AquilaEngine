@@ -78,7 +78,8 @@
     "files.watcherExclude": {
         "**/.git/objects/**": true,
         "**/.git/subtree-cache/**": true,
-        "**/build/**": true
+        "**/build/**": true,
+        "**/third-party/**": true
     },
     "telemetry.enableTelemetry": false
 }

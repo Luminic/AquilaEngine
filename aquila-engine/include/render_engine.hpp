@@ -27,7 +27,7 @@ namespace aq {
 
     class RenderEngine : public InitializationEngine {
     public:
-        RenderEngine();
+        RenderEngine(uint max_nr_textures=1);
         virtual ~RenderEngine();
 
         void update();
@@ -76,6 +76,7 @@ namespace aq {
         friend class AquilaEngine;
     
     private:
+        uint max_nr_textures;
         DeletionQueue deletion_queue;
     };
 

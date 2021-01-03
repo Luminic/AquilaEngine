@@ -8,7 +8,7 @@
 
 namespace aq {
 
-    AquilaEngine::AquilaEngine() : root_node(std::make_shared<Node>()) {
+    AquilaEngine::AquilaEngine() : render_engine(100), root_node(std::make_shared<Node>()) {
         if (render_engine.init() != aq::RenderEngine::InitializationState::Initialized)
 		    std::cerr << "Failed to initialize render engine." << std::endl;
         
