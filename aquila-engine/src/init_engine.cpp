@@ -107,7 +107,12 @@ namespace aq {
         gpu_support = vulkan_initializer.get_gpu_support();
         gpu_properties = chosen_gpu.getProperties();
 
-        if (!vulkan_initializer.create_device(device_extensions)) return false;
+        vk::PhysicalDeviceFeatures requested_features;
+        requested_features.shaderStorageBufferArrayDynamicIndexing = VK_TRUE;
+        requested_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
+        gpu_features = requested_features;
+
+        if (!vulkan_initializer.create_device(device_extensions, requested_features)) return false;
         graphics_queue = device.getQueue(gpu_support.graphics_present_queue_family, 0);
 
         vma::AllocatorCreateInfo allocator_create_info({}, chosen_gpu, device);

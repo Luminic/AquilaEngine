@@ -87,7 +87,7 @@ namespace aq {
                 vk::SurfaceKHR compatible_surface
             );
 
-            bool create_device(std::unordered_map<std::string, bool>& device_extensions);
+            bool create_device(std::unordered_map<std::string, bool>& device_extensions, const vk::PhysicalDeviceFeatures& requested_features);
 
             GPUSupport get_gpu_support();
 

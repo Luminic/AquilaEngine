@@ -13,12 +13,16 @@ struct MaterialProperties{
 	vec4 ambient_occlusion;
 };
 
-layout (std140, set=1, binding=1) uniform MaterialPropertiesBuffer {
-	MaterialProperties material_properties;
+layout (std140, set=1, binding=1) readonly buffer MaterialPropertiesBuffer {
+	MaterialProperties material_properties[];
 } material_properties_buffer;
+
+layout (push_constant) uniform VertConstants {
+	layout(offset=64) uint material_index;
+} push_constants;
 
 void main() {
 	// o_color = texture(sampler2D(tex1, samp), v_tex_coord);
 	// o_color = texture(tex, v_tex_coord);
-	o_color = material_properties_buffer.material_properties.albedo;
+	o_color = material_properties_buffer.material_properties[push_constants.material_index].albedo;
 }

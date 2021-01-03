@@ -10,8 +10,7 @@ layout(set=0, binding=0) uniform CameraBuffer {
 	mat4 view_projection;
 } camera_data;
 
-layout (push_constant) uniform constants {
-	vec4 data;
+layout (push_constant) uniform FragConstants {
 	mat4 model;
 } push_constants;
 

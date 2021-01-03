@@ -22,7 +22,7 @@ namespace aq {
         this->ctx = upload_context;
 
         allocation_size = frame_overlap * nr_materials * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
-        material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu);
+        material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
 
         auto[mm_res, buff_mem] = allocator->mapMemory(material_buffer.allocation);
         CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
@@ -98,7 +98,7 @@ namespace aq {
 
         std::array<vk::DescriptorSetLayoutBinding, 2> bindings{{
             { 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment },
-            { 1, vk::DescriptorType::eUniformBufferDynamic, 1, vk::ShaderStageFlagBits::eFragment }
+            { 1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eFragment }
         }};
         vk::DescriptorSetLayoutCreateInfo desc_set_create_info({}, bindings);
 
@@ -128,13 +128,13 @@ namespace aq {
         );
 
         std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
-            {material_buffer.buffer, 0, sizeof(Material::Properties)}
+            {material_buffer.buffer, 0, allocation_size}
         }};
         vk::WriteDescriptorSet write_buff_desc_set(
             desc_set, // dst set
             1, // dst binding
             0, // dst array element
-            vk::DescriptorType::eUniformBufferDynamic,
+            vk::DescriptorType::eStorageBuffer,
             {}, // image infos
             buffer_infos // buffer infos
         );

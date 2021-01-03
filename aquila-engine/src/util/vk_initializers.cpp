@@ -243,7 +243,7 @@ namespace aq {
             return true;
         }
 
-        bool VulkanInitializer::create_device(std::unordered_map<std::string, bool>& device_extensions) {
+        bool VulkanInitializer::create_device(std::unordered_map<std::string, bool>& device_extensions, const vk::PhysicalDeviceFeatures& requested_features) {
             float queue_priorites = 1.0f;
             std::array<vk::DeviceQueueCreateInfo, 1> device_queue_create_infos{{
                 {{}, gpu_support.graphics_present_queue_family, 1, &queue_priorites}
@@ -266,7 +266,7 @@ namespace aq {
 
             vk::PhysicalDeviceFeatures device_features{};
 
-            vk::DeviceCreateInfo device_create_info({}, device_queue_create_infos, {}, gpu_support.supported_requested_device_extensions, &device_features);
+            vk::DeviceCreateInfo device_create_info({}, device_queue_create_infos, {}, gpu_support.supported_requested_device_extensions, &requested_features);
 
             vk::Result cd_result;
             std::tie(cd_result, device) = gpu.createDevice(device_create_info);

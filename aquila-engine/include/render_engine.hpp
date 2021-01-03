@@ -17,8 +17,8 @@
 namespace aq {
 
     struct PushConstants {
-        glm::vec4 data;
         glm::mat4 model;
+        uint material_index;
     };
 
     struct GPUCameraData {

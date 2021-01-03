@@ -79,6 +79,7 @@ namespace aq {
         
         vk_init::GPUSupport gpu_support;
         vk::PhysicalDeviceProperties gpu_properties;
+        vk::PhysicalDeviceFeatures gpu_features;
 
         // Just an alias for `gpu_support.graphics_present_queue_family`
         uint32_t& graphics_queue_family{ gpu_support.graphics_present_queue_family };

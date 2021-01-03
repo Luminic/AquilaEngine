@@ -134,8 +134,9 @@ namespace aq {
 
         std::array<vk::DescriptorSetLayout, 2> set_layouts = {{global_set_layout, material_manager.get_descriptor_set_layout()}};
 
-        std::array<vk::PushConstantRange, 1> push_constant_ranges = {
-            vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants))
+        std::array<vk::PushConstantRange, 2> push_constant_ranges = {
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4)),
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, material_index), sizeof(uint))
         };
         
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, set_layouts, push_constant_ranges);
@@ -339,6 +340,7 @@ namespace aq {
         memcpy(p_cam_buff_mem + camera_data_gpu_size*frame_index, &camera_data, sizeof(GPUCameraData));
 
         fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});
+        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set()}, {});
 
         PushConstants constants;
         
@@ -346,13 +348,14 @@ namespace aq {
         for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
             if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
                 constants.model = it.get_transform();
-                fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
+                fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4), &constants);
                 for (auto& mesh : (*it)->get_child_meshes()) {
-                    uint offset = (uint32_t) material_manager.get_buffer_offset(frame_index);
-                    offset += ((i++)%2) * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), gpu_properties.limits.minUniformBufferOffsetAlignment);
-                    // std::cout << ((i)%2) << '\n';
+                    // uint offset = (uint32_t) material_manager.get_buffer_offset(frame_index);
+                    // offset += ((i++)%2) * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), gpu_properties.limits.minUniformBufferOffsetAlignment);
 
-                    fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set()}, {offset});
+                    // fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set()}, {offset});
+                    constants.material_index = (i++)%2;
+                    fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, material_index), sizeof(uint), (unsigned char*)&constants + offsetof(PushConstants, material_index));
 
                     fo.main_command_buffer.bindVertexBuffers(0, {mesh->combined_iv_buffer.buffer}, {mesh->vertex_data_offset});
                     fo.main_command_buffer.bindIndexBuffer(mesh->combined_iv_buffer.buffer, 0, index_vk_type);
