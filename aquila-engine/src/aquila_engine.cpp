@@ -14,8 +14,12 @@ namespace aq {
 
         placeholder_material = std::make_shared<Material>();
         placeholder_material->properties.albedo = glm::vec4(1.0f,1.0f,0.0f,1.0f);
+
+        placeholder_material2 = std::make_shared<Material>();
+        placeholder_material2->properties.albedo = glm::vec4(1.0f,0.0f,0.0f,1.0f);
         
         render_engine.material_manager.add_material(placeholder_material);
+        render_engine.material_manager.add_material(placeholder_material2);
     }
 
     AquilaEngine::~AquilaEngine() {

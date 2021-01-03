@@ -32,6 +32,7 @@ namespace aq {
     private:
         RenderEngine render_engine;
         std::shared_ptr<Material> placeholder_material;
+        std::shared_ptr<Material> placeholder_material2;
     };
 
 }

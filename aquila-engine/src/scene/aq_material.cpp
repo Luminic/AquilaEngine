@@ -21,7 +21,7 @@ namespace aq {
         this->allocator = allocator;
         this->ctx = upload_context;
 
-        allocation_size = frame_overlap * nr_materials * vk_util::pad_uniform_buffer_size(sizeof(Material), min_ubo_alignment);
+        allocation_size = frame_overlap * nr_materials * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
         material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu);
 
         auto[mm_res, buff_mem] = allocator->mapMemory(material_buffer.allocation);
@@ -73,8 +73,8 @@ namespace aq {
             std::shared_ptr<Material> mat = it->first.lock();
             if (mat) {
                 vk::DeviceSize offset = get_buffer_offset(safe_frame);
-                offset += mat->material_index * vk_util::pad_uniform_buffer_size(sizeof(Material), min_ubo_alignment);
-                memcpy(p_mat_buff_mem + offset, &mat->properties, sizeof(Material));
+                offset += mat->material_index * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
+                memcpy(p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
             }
 
             if (it->second.size() == frame_overlap || it->first.expired()) {
@@ -86,11 +86,11 @@ namespace aq {
     }
 
     vk::DeviceSize MaterialManager::get_buffer_offset(uint frame) {
-        return frame * nr_materials * vk_util::pad_uniform_buffer_size(sizeof(Material), min_ubo_alignment);
+        return frame * nr_materials * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
     }
 
     vk::DeviceSize MaterialManager::get_material_offset(std::shared_ptr<Material> material, uint frame) {
-        return (frame * nr_materials + material->material_index) * vk_util::pad_uniform_buffer_size(sizeof(Material), min_ubo_alignment);
+        return (frame * nr_materials + material->material_index) * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment);
     }
 
     void MaterialManager::create_descriptor_set(vk::DescriptorPool desc_pool) {
@@ -128,7 +128,7 @@ namespace aq {
         );
 
         std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
-            {material_buffer.buffer, 0, sizeof(Material)}
+            {material_buffer.buffer, 0, sizeof(Material::Properties)}
         }};
         vk::WriteDescriptorSet write_buff_desc_set(
             desc_set, // dst set

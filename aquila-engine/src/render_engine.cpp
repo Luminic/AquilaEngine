@@ -342,12 +342,17 @@ namespace aq {
 
         PushConstants constants;
         
+        uint i=0;
         for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
             if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
                 constants.model = it.get_transform();
                 fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &constants);
                 for (auto& mesh : (*it)->get_child_meshes()) {
-                    fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set()}, {0});
+                    uint offset = (uint32_t) material_manager.get_buffer_offset(frame_index);
+                    offset += ((i++)%2) * vk_util::pad_uniform_buffer_size(sizeof(Material::Properties), gpu_properties.limits.minUniformBufferOffsetAlignment);
+                    // std::cout << ((i)%2) << '\n';
+
+                    fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set()}, {offset});
 
                     fo.main_command_buffer.bindVertexBuffers(0, {mesh->combined_iv_buffer.buffer}, {mesh->vertex_data_offset});
                     fo.main_command_buffer.bindIndexBuffer(mesh->combined_iv_buffer.buffer, 0, index_vk_type);

@@ -87,7 +87,7 @@ namespace aq {
     private:
         AllocatedBuffer material_buffer; // Has `allocation_size` memory
         unsigned char* p_mat_buff_mem;
-        vk::DeviceSize allocation_size; // calculated as `frame_overlap * nr_materials * pad_uniform_buffer_size(sizeof(Material), min_ubo_alignment)`
+        vk::DeviceSize allocation_size; // calculated as `frame_overlap * nr_materials * pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment)`
 
         std::vector<std::weak_ptr<Material>> materials;
         // Materials are pushed into both `updated_materials` and `materials` when added

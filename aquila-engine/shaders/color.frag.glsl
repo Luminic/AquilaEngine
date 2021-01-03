@@ -19,5 +19,6 @@ layout (std140, set=1, binding=1) uniform MaterialPropertiesBuffer {
 
 void main() {
 	// o_color = texture(sampler2D(tex1, samp), v_tex_coord);
-	o_color = texture(tex, v_tex_coord);
+	// o_color = texture(tex, v_tex_coord);
+	o_color = material_properties_buffer.material_properties.albedo;
 }
