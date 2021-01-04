@@ -207,29 +207,6 @@ namespace aq {
         p_cam_buff_mem = (unsigned char*) buff_mem;
         deletion_queue.push_function([this]() { allocator.unmapMemory(camera_buffer.allocation); });
 
-        // Sampler
-
-        vk::SamplerCreateInfo sampler_create_info(
-            {}, // flags
-            vk::Filter::eLinear,
-            vk::Filter::eLinear,
-            vk::SamplerMipmapMode::eNearest,
-            vk::SamplerAddressMode::eClampToEdge,
-            vk::SamplerAddressMode::eClampToEdge,
-            vk::SamplerAddressMode::eClampToEdge,
-            0.0f, // mip lod bias
-            VK_FALSE, // anisotropy enable
-            0.0f // max anisotropy
-        );
-
-        vk::Result cs_result;
-        std::tie(cs_result, default_sampler) = device.createSampler(sampler_create_info);
-        CHECK_VK_RESULT_R(cs_result, false, "Failed to create sampler");
-        deletion_queue.push_function([this]() { device.destroySampler(default_sampler); });
-
-        if (!placeholder_texture.upload_from_file("/home/l/C++/Vulkan/Vulkan-Engine/sandbox/resources/happy-tree.png", &allocator, get_default_upload_context())) return false;
-        deletion_queue.push_function([this]() { placeholder_texture.destroy(); });
-
         return true;
     }
 

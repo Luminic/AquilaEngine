@@ -30,7 +30,9 @@ namespace aq {
         return glm::quat(from.w, from.x, from.y, from.z);
     }
 
-    ModelLoader::ModelLoader(const char* path) {
+    ModelLoader::ModelLoader(std::string directory, std::string file) : directory(directory) {
+        std::string path = directory + file;
+
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_RemoveRedundantMaterials);
 
@@ -66,12 +68,13 @@ namespace aq {
     // Returns false if a texture of type `ai_tex_type` doesn't exist in `ai_material`
     bool transfer_corresponding_texture(
         aiTextureType ai_tex_type, Material::TextureType aq_tex_type, 
-        aiMaterial* ai_material, std::shared_ptr<Material> aq_material) 
-    {
+        aiMaterial* ai_material, std::shared_ptr<Material> aq_material,
+        std::string directory
+    ) {
         if (ai_material->GetTextureCount(ai_tex_type) >= 1) {
             aiString ai_tex_path;
             ai_material->GetTexture(ai_tex_type, 0, &ai_tex_path);
-            aq_material->textures[aq_tex_type] = std::make_shared<Texture>(ai_tex_path.C_Str());
+            aq_material->textures[aq_tex_type] = std::make_shared<Texture>(directory + ai_tex_path.C_Str());
             return true;
         }
         return false;
@@ -115,19 +118,20 @@ namespace aq {
             ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, color);
             aq_mesh->material->properties.albedo = glm::vec4(ai_to_glm(color), 0.0f);
 
-            if (transfer_corresponding_texture(aiTextureType_BASE_COLOR, Material::Albedo, ai_material, aq_mesh->material))
-                aq_mesh->material->properties.albedo.a = 1.0f;
+            if (!transfer_corresponding_texture(aiTextureType_BASE_COLOR, Material::Albedo, ai_material, aq_mesh->material, directory))
+                transfer_corresponding_texture(aiTextureType_DIFFUSE, Material::Albedo, ai_material, aq_mesh->material, directory);
+
+            if (!transfer_corresponding_texture(aiTextureType_DIFFUSE_ROUGHNESS, Material::Roughness, ai_material, aq_mesh->material, directory))
+                transfer_corresponding_texture(aiTextureType_SHININESS, Material::Roughness, ai_material, aq_mesh->material, directory);
+
+            if (!transfer_corresponding_texture(aiTextureType_METALNESS, Material::Metalness,ai_material, aq_mesh->material, directory))
+                transfer_corresponding_texture(aiTextureType_SPECULAR, Material::Metalness,ai_material, aq_mesh->material, directory);
+
+            if (!transfer_corresponding_texture(aiTextureType_AMBIENT_OCCLUSION, Material::AmbientOcclusion, ai_material, aq_mesh->material, directory))
+                transfer_corresponding_texture(aiTextureType_AMBIENT, Material::AmbientOcclusion, ai_material, aq_mesh->material, directory);
             
-            if (transfer_corresponding_texture(aiTextureType_DIFFUSE_ROUGHNESS, Material::Roughness, ai_material, aq_mesh->material))
-                aq_mesh->material->properties.roughness.g = 1.0f;
-
-            if (transfer_corresponding_texture(aiTextureType_METALNESS, Material::Metalness, ai_material, aq_mesh->material))
-                aq_mesh->material->properties.metalness.g = 1.0f;
-
-            if (transfer_corresponding_texture(aiTextureType_AMBIENT_OCCLUSION, Material::AmbientOcclusion, ai_material, aq_mesh->material))
-                aq_mesh->material->properties.ambient.a = 1.0f;
-
-            if (transfer_corresponding_texture(aiTextureType_NORMAL_CAMERA, Material::Normal, ai_material, aq_mesh->material));
+            if (!transfer_corresponding_texture(aiTextureType_NORMAL_CAMERA, Material::Normal, ai_material, aq_mesh->material, directory))
+                transfer_corresponding_texture(aiTextureType_NORMALS, Material::Normal, ai_material, aq_mesh->material, directory);
         }
 
         return aq_mesh;

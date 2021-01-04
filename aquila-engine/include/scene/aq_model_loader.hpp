@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 #include "aq_mesh.hpp"
 #include "aq_node.hpp"
@@ -15,7 +16,9 @@ namespace aq {
 
     class ModelLoader {
     public:
-        ModelLoader(const char* path);
+        // Loads model with name `file` located in `directory`
+        // Finds textures relative to `directory`
+        ModelLoader(std::string directory, std::string file);
 
         std::shared_ptr<Node> get_root_node() { return root_node; }
         const std::vector<std::shared_ptr<Material>>& get_materials() { return aq_materials; }
@@ -28,6 +31,7 @@ namespace aq {
 
         std::vector<std::shared_ptr<Material>> aq_materials;
 
+        std::string directory;
     };
 
 }

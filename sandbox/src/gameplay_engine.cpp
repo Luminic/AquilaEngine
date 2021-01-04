@@ -113,6 +113,8 @@ void GameplayEngine::run() {
 }
 
 void GameplayEngine::init_meshes() {
+    std::string resource_path = std::string(SANDBOX_PROJECT_PATH) + "/resources/";
+
     std::shared_ptr<aq::Mesh> triangle_mesh = std::make_shared<aq::Mesh>();
 
     triangle_mesh->vertices.resize(4);
@@ -121,6 +123,11 @@ void GameplayEngine::init_meshes() {
     triangle_mesh->vertices[1].position = { 1.0f,-1.0f, 0.0f, 1.0f};
     triangle_mesh->vertices[2].position = { 1.0f, 1.0f, 0.0f, 1.0f};
     triangle_mesh->vertices[3].position = {-1.0f, 1.0f, 0.0f, 1.0f};
+
+    triangle_mesh->vertices[0].normal = {0.0f, 0.0f, 1.0f, 1.0f};
+    triangle_mesh->vertices[1].normal = {0.0f, 0.0f, 1.0f, 1.0f};
+    triangle_mesh->vertices[2].normal = {0.0f, 0.0f, 1.0f, 1.0f};
+    triangle_mesh->vertices[3].normal = {0.0f, 0.0f, 1.0f, 1.0f};
 
     triangle_mesh->vertices[0].tex_coord = {0.0f, 0.0f};
     triangle_mesh->vertices[1].tex_coord = {1.0f, 0.0f};
@@ -131,6 +138,11 @@ void GameplayEngine::init_meshes() {
         0, 1, 3,
         3, 1, 2
     };
+
+    triangle_mesh->material = std::make_shared<aq::Material>();
+    triangle_mesh->material->textures[aq::Material::Albedo] = std::make_shared<aq::Texture>((resource_path + "happy-tree.png").c_str());
+
+    aquila_engine.upload_materials({triangle_mesh->material});
 
     glm::quat small_y_rot = glm::quat(glm::vec3(0.0f, -3.1415f / 4, 0.0f));
     auto prev = aquila_engine.root_node;
@@ -143,7 +155,7 @@ void GameplayEngine::init_meshes() {
     aquila_engine.root_node->rotation = glm::quat(glm::vec3(0.0f, 3.1415f, 0.0f));
 
 
-    aq::ModelLoader model_loader((std::string(SANDBOX_PROJECT_PATH) + "/resources/monkey.obj").c_str());
+    aq::ModelLoader model_loader(resource_path, "monkey.obj");
 
     std::vector<std::shared_ptr<aq::Node>> nodes;
     for (auto& n : aquila_engine.root_node) {
@@ -154,7 +166,7 @@ void GameplayEngine::init_meshes() {
     }
 
 
-    aq::ModelLoader model_loader2((std::string(SANDBOX_PROJECT_PATH) + "/resources/test_scene.obj").c_str());
+    aq::ModelLoader model_loader2(resource_path, "test_scene.fbx");
     aquila_engine.root_node->add_node(model_loader2.get_root_node());
 
     std::shared_ptr<aq::Node> rect = std::make_shared<aq::Node>();

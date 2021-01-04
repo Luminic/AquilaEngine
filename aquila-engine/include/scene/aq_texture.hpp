@@ -10,8 +10,10 @@ namespace aq {
     class Texture {
     public:
         Texture(std::string path = "");
+        ~Texture();
 
-        bool upload_from_file(const char* path, vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
+        // Use texture path
+        bool upload_from_file(vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
         bool upload_from_data(void* data, int width, int height, vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
         void destroy(); // Only works if the object was allocated/uploaded with a member function
 

@@ -54,12 +54,14 @@ namespace aq {
 
         // Placeholder texture
         std::string placeholder_texture_path = std::string(AQUILA_ENGINE_PATH) + "/resources/missing_texture.png";
-        if (!placeholder_texture.upload_from_file(placeholder_texture_path.c_str(), allocator, ctx)) return false;
+        textures.push_back(std::make_shared<Texture>(placeholder_texture_path));
+        assert(textures.size() == 1); // Error texture must be the first texture
+        if (!textures[0]->upload_from_file(allocator, ctx)) return false;
 
         return true;
     }
 
-    void MaterialManager::add_material(std::shared_ptr<Material> material) {
+    void MaterialManager::add_material(std::shared_ptr<Material> material) {        
         if (material->manager)
             std::cerr << "A material can only be managed by one manager at a time." << std::endl;
         material->manager = this;
@@ -68,28 +70,66 @@ namespace aq {
 
         materials.push_back(material);
 
-        updated_materials.push_back(material);
+        updated_materials.push_back(material->material_index);
+
+        if (material->textures[Material::Albedo]) {
+            material->properties.albedo_ti = add_texture(material->textures[Material::Albedo]);
+        }
+        if (material->textures[Material::Roughness]) {
+            material->properties.roughness_ti = add_texture(material->textures[Material::Roughness]);
+        }
+        if (material->textures[Material::Metalness]) {
+            material->properties.metalness_ti = add_texture(material->textures[Material::Metalness]);
+        }
+        if (material->textures[Material::AmbientOcclusion]) {
+            material->properties.ambient_occlusion_ti = add_texture(material->textures[Material::AmbientOcclusion]);
+        }
+        if (material->textures[Material::Normal]) {
+            material->properties.normal_ti = add_texture(material->textures[Material::Normal]);
+        }
     }
 
     void MaterialManager::update_material(std::shared_ptr<Material> material) {
         assert(material->manager == this);
         if (material->uploaded_buffers.size() >= frame_overlap) {
-            updated_materials.push_back(material);
+            updated_materials.push_back(material->material_index);
         }
         material->uploaded_buffers.clear();
     }
 
+    uint MaterialManager::add_texture(std::shared_ptr<Texture> texture) {
+        auto tex_it = texture_map.find(texture->get_path());
+        if (tex_it != texture_map.end()) { // Texture was already added
+            return tex_it->second; 
+        }
+
+        if (!texture->is_uploaded()) {
+            if (!texture->upload_from_file(allocator, ctx)) {
+                return 0;
+            }
+        }
+
+        uint texture_index = (uint)textures.size();
+
+        textures.push_back(texture);
+        texture_map.insert({texture->get_path(), texture_index});
+        added_textures.push_back({texture_index, {}});
+
+        return texture_index;
+    }
+
     void MaterialManager::update(uint safe_frame) {
-        auto it=updated_materials.begin();
+        auto it = updated_materials.begin();
         while (it != updated_materials.end()) {
-            std::shared_ptr<Material> mat = it->lock();
+            std::shared_ptr<Material> mat = materials[*it].lock();
             if (mat) {
-                if (std::find(std::begin(mat->uploaded_buffers), std::end(mat->uploaded_buffers), safe_frame) == std::end(mat->uploaded_buffers))
+                if (std::find(std::begin(mat->uploaded_buffers), std::end(mat->uploaded_buffers), safe_frame) == std::end(mat->uploaded_buffers)) {
                     mat->uploaded_buffers.push_back(safe_frame);
 
-                vk::DeviceSize offset = get_buffer_offset(safe_frame);
-                offset += mat->material_index * sizeof(Material::Properties);
-                memcpy(p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
+                    vk::DeviceSize offset = get_buffer_offset(safe_frame);
+                    offset += mat->material_index * sizeof(Material::Properties);
+                    memcpy(p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
+                }
 
                 if (mat->uploaded_buffers.size() >= frame_overlap)
                     it = updated_materials.erase(it);
@@ -100,6 +140,38 @@ namespace aq {
                 it = updated_materials.erase(it);
             }
         }
+
+        std::vector<vk::WriteDescriptorSet> descriptor_writes;
+
+        auto it2 = added_textures.begin();
+        while (it2 != added_textures.end()) {
+            if (std::find(std::begin(it2->second), std::end(it2->second), safe_frame) == std::end(it2->second)) {
+                it2->second.push_back(safe_frame);
+
+                std::array<vk::DescriptorImageInfo,1> desc_img_infos{{
+                    textures[it2->first]->get_image_info()
+                }};
+
+                vk::WriteDescriptorSet write_tex_desc_set(
+                    desc_sets[safe_frame], // dst set
+                    2, // dst binding
+                    it2->first, // dst array element
+                    vk::DescriptorType::eSampledImage,
+                    desc_img_infos, // image infos
+                    {} // buffer infos
+                );
+
+                descriptor_writes.push_back(write_tex_desc_set);
+            }
+
+            if (it2->second.size() >= frame_overlap) {
+                it2 = added_textures.erase(it2);
+            } else {
+                ++it2;
+            }
+        }
+
+        ctx.device.updateDescriptorSets(descriptor_writes, {});
     }
 
     vk::DeviceSize MaterialManager::get_buffer_offset(uint frame) {
@@ -110,6 +182,13 @@ namespace aq {
         if (material && material->manager == this)
             return material->material_index;
         return 0;
+    }
+
+    std::shared_ptr<Texture> MaterialManager::get_texture(std::string path) {
+        auto texture_index = texture_map.find(path);
+        if (texture_index != texture_map.end())
+            return textures[texture_index->second];
+        return {};
     }
 
     void MaterialManager::create_descriptor_set() {
@@ -182,7 +261,7 @@ namespace aq {
             std::vector<vk::DescriptorImageInfo> image_infos;
             image_infos.reserve(max_nr_textures);
             for (size_t i=0; i<max_nr_textures; ++i)
-                image_infos.push_back(placeholder_texture.get_image_info());
+                image_infos.push_back(textures[0]->get_image_info());
 
             vk::WriteDescriptorSet write_tex_desc_set(
                 desc_sets[i], // dst set
@@ -202,7 +281,13 @@ namespace aq {
         ctx.device.destroySampler(default_sampler);
         ctx.device.destroyDescriptorPool(desc_pool);
         material_buffer.destroy();
-        placeholder_texture.destroy();
+
+        materials.clear();
+        updated_materials.clear();
+
+        // Clearing textures vector will free unused textures
+        textures.clear();
+        added_textures.clear();
     }
 
 }

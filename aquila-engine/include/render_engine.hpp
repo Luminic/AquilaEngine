@@ -56,9 +56,6 @@ namespace aq {
         unsigned char* p_cam_buff_mem;
         AllocatedBuffer camera_buffer; // Holds GPUCameraData
 
-        vk::Sampler default_sampler;
-        Texture placeholder_texture;
-
         bool init_descriptors();
 
         vk::DescriptorPool descriptor_pool;

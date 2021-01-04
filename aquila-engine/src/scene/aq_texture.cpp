@@ -7,11 +7,11 @@ namespace aq {
 
     Texture::Texture(std::string path) : path(path) {}
 
-    bool Texture::upload_from_file(const char* path, vma::Allocator* allocator, const vk_util::UploadContext& upload_context) {
-        this->path = std::string(path);
+    Texture::~Texture() { destroy(); }
 
+    bool Texture::upload_from_file(vma::Allocator* allocator, const vk_util::UploadContext& upload_context) {
         int texture_width, texture_height, nr_channels;
-        stbi_uc* pixels = stbi_load(path, &texture_width, &texture_height, &nr_channels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load(path.c_str(), &texture_width, &texture_height, &nr_channels, STBI_rgb_alpha);
         if (!pixels) {
             std::cerr << "Failed to load texture file " << path << '\n';
             return false;

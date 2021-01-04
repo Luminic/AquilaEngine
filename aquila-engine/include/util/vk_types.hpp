@@ -49,7 +49,7 @@ namespace aq {
         vma::Allocation allocation;
     
     private:
-        vma::Allocator* allocator;
+        vma::Allocator* allocator = nullptr;
     };
 
     struct AllocatedImage {
@@ -64,7 +64,7 @@ namespace aq {
         vma::Allocation allocation;
 
     private:
-        vma::Allocator* allocator;
+        vma::Allocator* allocator = nullptr;
     };
 
 }

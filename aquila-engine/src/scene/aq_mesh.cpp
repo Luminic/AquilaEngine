@@ -73,12 +73,10 @@ namespace aq {
     }
 
     void Mesh::free() {
-        if (allocator) {
-            combined_iv_buffer.destroy();
-            vertex_data_offset = 0;
-            
-            allocator = nullptr;
-        }
+        combined_iv_buffer.destroy();
+        vertex_data_offset = 0;
+        allocator = nullptr;
+        material = {};
     }
 
 }

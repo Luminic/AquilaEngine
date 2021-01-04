@@ -7,8 +7,6 @@ namespace aq {
     AllocatedBuffer::AllocatedBuffer() : buffer(nullptr), allocation(nullptr), allocator(nullptr) {}
 
     bool AllocatedBuffer::allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage) {
-        this->allocator = allocator;
-
         vk::BufferCreateInfo buffer_create_info(
             {},
             allocation_size,
@@ -21,6 +19,8 @@ namespace aq {
         auto[cb_result, buff_alloc] = allocator->createBuffer(buffer_create_info, alloc_create_info);
         CHECK_VK_RESULT_R(cb_result, false, "Failed to create/allocate mesh");
         set(buff_alloc);
+
+        this->allocator = allocator;
 
         return true;
     }
@@ -56,8 +56,6 @@ namespace aq {
     AllocatedImage::AllocatedImage() {}
 
     bool AllocatedImage::upload(void* texture_data, int width, int height, vma::Allocator* allocator, const vk_util::UploadContext& upload_context) {
-        this->allocator = allocator;
-
         vk::DeviceSize image_size = width * height * 4;
         vk::Format image_format = vk::Format::eR8G8B8A8Unorm;
 
@@ -146,6 +144,8 @@ namespace aq {
         }, upload_context);
 
         staging_buffer.destroy();
+
+        this->allocator = allocator;
 
         return true;
     }
