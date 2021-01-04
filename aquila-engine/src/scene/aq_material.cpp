@@ -1,5 +1,6 @@
 #include "scene/aq_material.hpp"
 
+#include <list>
 #include <algorithm>
 #include <iostream>
 
@@ -40,9 +41,9 @@ namespace aq {
             vk::Filter::eLinear,
             vk::Filter::eLinear,
             vk::SamplerMipmapMode::eNearest,
-            vk::SamplerAddressMode::eClampToEdge,
-            vk::SamplerAddressMode::eClampToEdge,
-            vk::SamplerAddressMode::eClampToEdge,
+            vk::SamplerAddressMode::eRepeat,
+            vk::SamplerAddressMode::eRepeat,
+            vk::SamplerAddressMode::eRepeat,
             0.0f, // mip lod bias
             VK_FALSE, // anisotropy enable
             0.0f // max anisotropy
@@ -142,25 +143,26 @@ namespace aq {
         }
 
         std::vector<vk::WriteDescriptorSet> descriptor_writes;
+        // Needed to store the memory for `descriptor_writes` because `vk::WriteDescriptorSet` only keeps a pointer
+        // to `vk::DescriptorImageInfo`. A list is necessary so pointers aren't invalidated
+        std::list<vk::DescriptorImageInfo> image_infos;
 
         auto it2 = added_textures.begin();
         while (it2 != added_textures.end()) {
             if (std::find(std::begin(it2->second), std::end(it2->second), safe_frame) == std::end(it2->second)) {
                 it2->second.push_back(safe_frame);
 
-                std::array<vk::DescriptorImageInfo,1> desc_img_infos{{
-                    textures[it2->first]->get_image_info()
-                }};
+                image_infos.push_back(textures[it2->first]->get_image_info());
 
                 vk::WriteDescriptorSet write_tex_desc_set(
                     desc_sets[safe_frame], // dst set
                     2, // dst binding
                     it2->first, // dst array element
+                    1, // descriptor count
                     vk::DescriptorType::eSampledImage,
-                    desc_img_infos, // image infos
-                    {} // buffer infos
+                    &image_infos.back(), // image infos
+                    nullptr // buffer infos
                 );
-
                 descriptor_writes.push_back(write_tex_desc_set);
             }
 
@@ -172,6 +174,7 @@ namespace aq {
         }
 
         ctx.device.updateDescriptorSets(descriptor_writes, {});
+
     }
 
     vk::DeviceSize MaterialManager::get_buffer_offset(uint frame) {
