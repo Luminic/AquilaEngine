@@ -135,16 +135,16 @@ namespace aq {
         vk::GraphicsPipelineCreateInfo pipeline_create_info(
             {}, // flags
             shader_stages, 
-            &vertex_input, 
-            &input_assembly, 
+            vertex_input ? &vertex_input.value() : nullptr, 
+            input_assembly ? &input_assembly.value() : nullptr, 
             nullptr, // tessellation state
             &viewport_state,
-            &rasterization_state,
-            &multisample_state,
-            &depth_stencil_state,
+            rasterization_state ? &rasterization_state.value() : nullptr,
+            multisample_state ? &multisample_state.value() : nullptr,
+            depth_stencil_state ? &depth_stencil_state.value() : nullptr,
             &color_blending,
-            &dynamic_state,
-            pipeline_layout,
+            dynamic_state ? &dynamic_state.value() : nullptr,
+            pipeline_layout.value(),
             render_pass,
             0, // subpass
             nullptr, // base pipeline handle

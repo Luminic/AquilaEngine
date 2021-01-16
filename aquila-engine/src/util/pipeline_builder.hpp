@@ -2,6 +2,7 @@
 #define UTIL_AQUILA_PIPELINE_BUILDER_HPP
 
 #include <vector>
+#include <optional>
 
 #include "util/vk_types.hpp"
 
@@ -46,16 +47,16 @@ namespace aq {
 
     private:
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
-        vk::PipelineVertexInputStateCreateInfo vertex_input;
-        vk::PipelineInputAssemblyStateCreateInfo input_assembly;
+        std::optional<vk::PipelineVertexInputStateCreateInfo> vertex_input;
+        std::optional<vk::PipelineInputAssemblyStateCreateInfo> input_assembly;
         std::vector<vk::Viewport> viewports;
         std::vector<vk::Rect2D> scissors;
-        vk::PipelineRasterizationStateCreateInfo rasterization_state;
+        std::optional<vk::PipelineRasterizationStateCreateInfo> rasterization_state;
         std::vector<vk::PipelineColorBlendAttachmentState> color_blend_attachments;
-        vk::PipelineMultisampleStateCreateInfo multisample_state;
-        vk::PipelineDepthStencilStateCreateInfo depth_stencil_state;
-        vk::PipelineDynamicStateCreateInfo dynamic_state;
-        vk::PipelineLayout pipeline_layout;
+        std::optional<vk::PipelineMultisampleStateCreateInfo> multisample_state;
+        std::optional<vk::PipelineDepthStencilStateCreateInfo> depth_stencil_state;
+        std::optional<vk::PipelineDynamicStateCreateInfo> dynamic_state;
+        std::optional<vk::PipelineLayout> pipeline_layout;
     };
 
 }
