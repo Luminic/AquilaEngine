@@ -150,6 +150,21 @@ namespace aq {
             return false;
         }
 
+        std::array<vk::SpecializationMapEntry, 1> triangle_frag_specialization_map{{
+            {0, 0, sizeof(int32_t)}
+        }};
+
+        /*
+        vk::SpecializationInfo( 
+            vk::ArrayProxyNoTemporaries<const vk::SpecializationMapEntry> const & mapEntries_, 
+            vk::ArrayProxyNoTemporaries<const T> const & data_ = {}
+        )
+        */
+
+        vk::SpecializationInfo triangle_frag_specialization = vk::SpecializationInfo()
+            .setMapEntries(triangle_frag_specialization_map)
+            .setDataSize(sizeof(max_nr_textures))
+            .setPData(&max_nr_textures);
 
         std::array<vk::DescriptorSetLayout, 2> set_layouts = {{global_set_layout, material_manager.get_descriptor_set_layout()}};
 
@@ -171,7 +186,7 @@ namespace aq {
 
         PipelineBuilder pipeline_builder = PipelineBuilder()
             .add_shader_stage({{}, vk::ShaderStageFlagBits::eVertex, *triangle_vert_shader, "main"})
-            .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, *triangle_frag_shader, "main"})
+            .add_shader_stage({{}, vk::ShaderStageFlagBits::eFragment, *triangle_frag_shader, "main", &triangle_frag_specialization})
             .set_vertex_input({{}, vertex_input_description.bindings, vertex_input_description.attributes})
             .set_input_assembly({{}, vk::PrimitiveTopology::eTriangleList, VK_FALSE})
             .set_viewport_count(1)

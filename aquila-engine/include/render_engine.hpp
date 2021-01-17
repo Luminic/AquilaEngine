@@ -75,7 +75,7 @@ namespace aq {
         friend class AquilaEngine;
     
     private:
-        uint max_nr_textures;
+        uint32_t max_nr_textures;
         DeletionQueue deletion_queue;
     };
 

@@ -5,6 +5,8 @@ layout (location = 0) out vec4 o_color;
 layout (location = 0) in vec4 v_normal;
 layout (location = 1) in vec2 v_tex_coord;
 
+layout (constant_id = 0) const int MAX_NR_TEXTURES = 100;
+
 struct MaterialProperties{
 	vec3 albedo; 
 	uint albedo_ti;
@@ -29,7 +31,7 @@ layout (std140, set=1, binding=0) readonly buffer MaterialPropertiesBuffer {
 } material_properties_buffer;
 
 layout (set=1, binding=1) uniform sampler samp;
-layout (set=1, binding=2) uniform texture2D tex[100];
+layout (set=1, binding=2) uniform texture2D tex[MAX_NR_TEXTURES];
 
 layout (push_constant) uniform VertConstants {
 	layout(offset=64) uint material_index;
