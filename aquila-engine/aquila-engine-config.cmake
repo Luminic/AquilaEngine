@@ -20,7 +20,7 @@ endif()
 set(_targetsDefined)
 set(_targetsNotDefined)
 set(_expectedTargets)
-foreach(_expectedTarget aquila-engine vma)
+foreach(_expectedTarget aquila-engine vma imgui)
   list(APPEND _expectedTargets ${_expectedTarget})
   if(NOT TARGET ${_expectedTarget})
     list(APPEND _targetsNotDefined ${_expectedTarget})
@@ -51,7 +51,7 @@ add_library(aquila-engine SHARED IMPORTED)
 set_target_properties(aquila-engine PROPERTIES
   INTERFACE_COMPILE_DEFINITIONS "GLM_FORCE_DEPTH_ZERO_TO_ONE"
   INTERFACE_INCLUDE_DIRECTORIES "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/include"
-  INTERFACE_LINK_LIBRARIES "SDL2::SDL2;vma"
+  INTERFACE_LINK_LIBRARIES "SDL2::SDL2;vma;imgui"
 )
 
 # Create imported target vma
@@ -61,11 +61,26 @@ set_target_properties(vma PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/third-party/vma"
 )
 
-# Import target "aquila-engine" for configuration "Debug"
-set_property(TARGET aquila-engine APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
+# Create imported target imgui
+add_library(imgui SHARED IMPORTED)
+
+set_target_properties(imgui PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/third-party/imgui"
+)
+
+# Import target "aquila-engine" for configuration ""
+set_property(TARGET aquila-engine APPEND PROPERTY IMPORTED_CONFIGURATIONS NOCONFIG)
 set_target_properties(aquila-engine PROPERTIES
-  IMPORTED_LOCATION_DEBUG "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/lib/libaquila-engine.so"
-  IMPORTED_SONAME_DEBUG "libaquila-engine.so"
+  IMPORTED_LOCATION_NOCONFIG "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/lib/libaquila-engine.so"
+  IMPORTED_SONAME_NOCONFIG "libaquila-engine.so"
+  )
+
+# Import target "imgui" for configuration ""
+set_property(TARGET imgui APPEND PROPERTY IMPORTED_CONFIGURATIONS NOCONFIG)
+set_target_properties(imgui PROPERTIES
+  IMPORTED_LINK_DEPENDENT_LIBRARIES_NOCONFIG "SDL2::SDL2"
+  IMPORTED_LOCATION_NOCONFIG "/home/l/C++/Vulkan/Vulkan-Engine/aquila-engine/lib/libimgui.so"
+  IMPORTED_SONAME_NOCONFIG "libimgui.so"
   )
 
 # This file does not depend on other imported targets which have

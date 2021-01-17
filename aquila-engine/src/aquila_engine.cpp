@@ -4,6 +4,9 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <imgui.h>
+#include <imgui_impl_sdl.h>
+
 #include "scene/aq_texture.hpp"
 
 namespace aq {
@@ -46,6 +49,30 @@ namespace aq {
             if (!material->is_managed())
                 render_engine.material_manager.add_material(material);
         }
+    }
+
+    bool AquilaEngine::process_sdl_event(const SDL_Event& sdl_event) {
+        ImGui_ImplSDL2_ProcessEvent(&sdl_event);
+
+        ImGuiIO io = ImGui::GetIO();
+        
+        switch (sdl_event.type) {
+        case SDL_KEYDOWN:
+        case SDL_KEYUP:
+        case SDL_TEXTEDITING:
+        case SDL_TEXTINPUT:
+            if (io.WantCaptureKeyboard) return true;
+            break;
+        case SDL_MOUSEMOTION:
+        case SDL_MOUSEBUTTONDOWN:
+        case SDL_MOUSEBUTTONUP:
+        case SDL_MOUSEWHEEL:
+            if (io.WantCaptureMouse) return true;
+            break;
+        default:
+            break;
+        } 
+        return false;
     }
 
 }

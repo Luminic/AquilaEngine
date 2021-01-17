@@ -8,6 +8,10 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <imgui.h>
+#include <imgui_impl_sdl.h>
+#include <imgui_impl_vulkan.h>
+
 #include "util/pipeline_builder.hpp"
 #include "util/vk_utility.hpp"
 
@@ -17,7 +21,17 @@ namespace aq {
 
     RenderEngine::~RenderEngine() {}
 
-    void RenderEngine::update() {}
+    void RenderEngine::update() {
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplSDL2_NewFrame(window);
+
+        ImGui::NewFrame();
+
+        // Dear ImGui commands
+        ImGui::ShowDemoWindow();
+
+        ImGui::Render();
+    }
 
     void RenderEngine::draw(AbstractCamera* camera, std::shared_ptr<Node> object_hierarchy) {
         if (initialization_state != InitializationState::Initialized) {
@@ -76,6 +90,9 @@ namespace aq {
         // Actual rendering
         draw_objects(camera, object_hierarchy);
 
+        // Render ImGui
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), fo.main_command_buffer);
+
         fo.main_command_buffer.endRenderPass();
 
         // End command buffer
@@ -103,6 +120,8 @@ namespace aq {
         if (!init_data()) return false;
         if (!init_descriptors()) return false;
         if (!init_pipelines()) return false;
+
+        if (!init_imgui()) return false;
 
         return true;
     }
@@ -267,6 +286,67 @@ namespace aq {
         }
 
         material_manager.create_descriptor_set();
+
+        return true;
+    }
+
+    bool RenderEngine::init_imgui() {
+        // Create the decriptor pool for Dear ImGui
+
+        std::array<vk::DescriptorPoolSize, 11> pool_sizes{{
+            { vk::DescriptorType::eSampler, 1000 },
+            { vk::DescriptorType::eCombinedImageSampler, 1000 },
+            { vk::DescriptorType::eSampledImage, 1000 },
+            { vk::DescriptorType::eStorageImage, 1000 },
+            { vk::DescriptorType::eUniformTexelBuffer, 1000 },
+            { vk::DescriptorType::eStorageTexelBuffer, 1000 },
+            { vk::DescriptorType::eUniformBuffer, 1000 },
+            { vk::DescriptorType::eStorageBuffer, 1000 },
+            { vk::DescriptorType::eUniformBufferDynamic, 1000 },
+            { vk::DescriptorType::eStorageBufferDynamic, 1000 },
+            { vk::DescriptorType::eInputAttachment, 1000 }
+        }};
+
+        vk::Result cdp_res;
+        vk::DescriptorPool imgui_desc_pool;
+        std::tie(cdp_res, imgui_desc_pool) = device.createDescriptorPool({{}, 1000, pool_sizes});
+        CHECK_VK_RESULT_R(cdp_res, false, "Failed to create descriptor pool for Dear ImGui");
+
+        // Initialize Dear ImGui itself
+
+        ImGui::CreateContext();
+
+        // Initializes Dear ImGui for SDL
+        ImGui_ImplSDL2_InitForVulkan(window);
+
+        // Initializes Dear ImGui for Vulkan
+        ImGui_ImplVulkan_InitInfo init_info = {};
+        init_info.Instance = instance;
+        init_info.PhysicalDevice = chosen_gpu;
+        init_info.Device = device;
+        init_info.Queue = graphics_queue;
+        init_info.DescriptorPool = imgui_desc_pool;
+        init_info.MinImageCount = image_count;
+        init_info.ImageCount = image_count;
+
+        ImGui_ImplVulkan_Init(&init_info, render_pass);
+
+        // Upload Dear ImGui font textures
+        vk_util::immediate_submit(
+            [](VkCommandBuffer cmd) {
+                ImGui_ImplVulkan_CreateFontsTexture(cmd);
+            },
+            get_default_upload_context()
+        );
+
+        // Clear font textures from cpu data
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+        // Add the destroy for Dear ImGui structures
+        deletion_queue.push_function([this, imgui_desc_pool]() {
+            vkDestroyDescriptorPool(device, imgui_desc_pool, nullptr);
+            ImGui_ImplVulkan_Shutdown();
+        });
 
         return true;
     }

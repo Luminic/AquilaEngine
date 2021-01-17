@@ -35,8 +35,8 @@ namespace aq {
         }
 
         if (!init_vulkan_resources()) initialization_state = InitializationState::FailedVulkanObjectsInitialization;
-        if (!init_render_resources()) initialization_state = InitializationState::FailedInitialization;
         if (!init_swapchain_resources()) initialization_state = InitializationState::FailedSwapChainInitialization;
+        if (!init_render_resources()) initialization_state = InitializationState::FailedInitialization;
 
         return initialization_state;
     }

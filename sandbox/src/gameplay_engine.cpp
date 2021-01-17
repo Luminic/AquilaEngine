@@ -9,6 +9,8 @@
 
 #include <glm/glm.hpp>
 
+#include <imgui.h>
+
 #include <scene/aq_model_loader.hpp>
 
 
@@ -43,6 +45,8 @@ void GameplayEngine::run() {
     while (!quit) {
         SDL_Event event;
         while (SDL_PollEvent(&event) != 0) {
+            if (aquila_engine.process_sdl_event(event)) continue;
+
             switch (event.type) {
             case SDL_QUIT:
                 quit = true;
@@ -88,23 +92,26 @@ void GameplayEngine::run() {
             }
         }
 
-        CameraMovementFlags camera_movement(CameraMovementFlags::NONE);
+        ImGuiIO io = ImGui::GetIO();
+        if (!io.WantCaptureKeyboard) {
+            CameraMovementFlags camera_movement(CameraMovementFlags::NONE);
 
-        const uint8_t* keyboard_state = SDL_GetKeyboardState(nullptr);
-        if (keyboard_state[SDL_SCANCODE_UP] || keyboard_state[SDL_SCANCODE_W])
-            camera_movement |= CameraMovementFlags::FORWARD;
-        if (keyboard_state[SDL_SCANCODE_DOWN] || keyboard_state[SDL_SCANCODE_S])
-            camera_movement |= CameraMovementFlags::BACKWARD;
-        if (keyboard_state[SDL_SCANCODE_LEFT] || keyboard_state[SDL_SCANCODE_A])
-            camera_movement |= CameraMovementFlags::LEFTWARD;
-        if (keyboard_state[SDL_SCANCODE_RIGHT] || keyboard_state[SDL_SCANCODE_D])
-            camera_movement |= CameraMovementFlags::RIGHTWARD;
-        if (keyboard_state[SDL_SCANCODE_LSHIFT])
-            camera_movement |= CameraMovementFlags::DOWNWARD;
-        if (keyboard_state[SDL_SCANCODE_SPACE])
-            camera_movement |= CameraMovementFlags::UPWARD;
-        
-        camera_controller.move(camera_movement);
+            const uint8_t* keyboard_state = SDL_GetKeyboardState(nullptr);
+            if (keyboard_state[SDL_SCANCODE_UP] || keyboard_state[SDL_SCANCODE_W])
+                camera_movement |= CameraMovementFlags::FORWARD;
+            if (keyboard_state[SDL_SCANCODE_DOWN] || keyboard_state[SDL_SCANCODE_S])
+                camera_movement |= CameraMovementFlags::BACKWARD;
+            if (keyboard_state[SDL_SCANCODE_LEFT] || keyboard_state[SDL_SCANCODE_A])
+                camera_movement |= CameraMovementFlags::LEFTWARD;
+            if (keyboard_state[SDL_SCANCODE_RIGHT] || keyboard_state[SDL_SCANCODE_D])
+                camera_movement |= CameraMovementFlags::RIGHTWARD;
+            if (keyboard_state[SDL_SCANCODE_LSHIFT])
+                camera_movement |= CameraMovementFlags::DOWNWARD;
+            if (keyboard_state[SDL_SCANCODE_SPACE])
+                camera_movement |= CameraMovementFlags::UPWARD;
+            
+            camera_controller.move(camera_movement);
+        }
 
         camera.update();
         aquila_engine.update();
@@ -142,31 +149,22 @@ void GameplayEngine::init_meshes() {
     triangle_mesh->material = std::make_shared<aq::Material>();
     triangle_mesh->material->textures[aq::Material::Albedo] = std::make_shared<aq::Texture>((resource_path + "happy-tree.png").c_str());
 
-    aquila_engine.upload_materials({triangle_mesh->material});
 
-    glm::quat small_y_rot = glm::quat(glm::vec3(0.0f, -3.1415f / 4, 0.0f));
-    auto prev = aquila_engine.root_node;
-    for (uint i=0; i<30; ++i) {
-        std::shared_ptr<aq::Node> child = std::make_shared<aq::Node>(glm::vec4(4.0f,-0.8f,0.0f,1.0f), small_y_rot);
-        prev->add_node(child);
-        prev = child;
-    }
+    // aq::ModelLoader model_loader(resource_path, "monkey.obj");
+
+    // glm::quat small_y_rot = glm::quat(glm::vec3(0.0f, -3.1415f / 4, 0.0f));
+    // auto prev = aquila_engine.root_node;
+    // for (uint i=0; i<30; ++i) {
+    //     std::shared_ptr<aq::Node> child = std::make_shared<aq::Node>(glm::vec4(4.0f,-0.8f,0.0f,1.0f), small_y_rot);
+    //     prev->add_node(child);
+    //     child->add_node(model_loader.get_root_node());
+    //     prev = child;
+    // }
 
     aquila_engine.root_node->rotation = glm::quat(glm::vec3(0.0f, 3.1415f, 0.0f));
 
 
-    aq::ModelLoader model_loader(resource_path, "monkey.obj");
-
-    std::vector<std::shared_ptr<aq::Node>> nodes;
-    for (auto& n : aquila_engine.root_node) {
-        nodes.push_back(n);
-    }
-    for (auto& node : nodes) {
-        node->add_node(model_loader.get_root_node());
-    }
-
-
-    aq::ModelLoader model_loader2(resource_path, "test_scene.fbx");
+    aq::ModelLoader model_loader2(resource_path, "test_scene.obj");
     aquila_engine.root_node->add_node(model_loader2.get_root_node());
 
     std::shared_ptr<aq::Node> rect = std::make_shared<aq::Node>();
@@ -175,6 +173,7 @@ void GameplayEngine::init_meshes() {
     aquila_engine.root_node->add_node(rect);
 
     aquila_engine.upload_meshes();
-    aquila_engine.upload_materials(model_loader.get_materials());
+    aquila_engine.upload_materials({triangle_mesh->material});
+    // aquila_engine.upload_materials(model_loader.get_materials());
     aquila_engine.upload_materials(model_loader2.get_materials());
 }

@@ -36,4 +36,4 @@ add_custom_target(
 
 add_dependencies(aquila-engine Shaders)
 
-export(TARGETS aquila-engine vma FILE ${CMAKE_SOURCE_DIR}/aquila-engine-config.cmake)
+export(TARGETS aquila-engine vma imgui FILE ${CMAKE_SOURCE_DIR}/aquila-engine-config.cmake)

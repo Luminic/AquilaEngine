@@ -44,4 +44,5 @@ target_link_libraries(aquila-engine
     PRIVATE assimp
     PUBLIC vma
     PRIVATE stb-image
+    PUBLIC imgui
 )
