@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <unordered_map>
-#include <deque>
 #include <array>
 #include <functional>
 
@@ -15,21 +14,6 @@
 #include "util/vk_initializers.hpp"
 
 namespace aq {
-
-    class DeletionQueue {
-    public:
-        void push_function(std::function<void()>&& function) {
-            deletors.push_back(function);
-        }
-        void flush() {
-            for (auto it = deletors.rbegin(); it != deletors.rend(); ++it) {
-                (*it)(); // Call functors
-            }
-            deletors.clear();
-        }
-    private:
-        std::deque<std::function<void()>> deletors;
-    };
 
     class InitializationEngine {
     public:
@@ -146,11 +130,16 @@ namespace aq {
 
         bool init_command_buffers();
         bool init_swapchain();
+        bool init_depth_image();
         bool init_framebuffers();
         bool init_swap_chain_sync_structures();
     
     private:
         DeletionQueue deletion_queue;
+
+        // Lambdas should capture swap chain vulkan handles by value (copy if needed)
+        // rather than using the `this` pointer because a new swap chain will be
+        // created before the old is destroyed
         DeletionQueue swap_chain_deletion_queue;
     };
 

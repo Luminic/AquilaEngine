@@ -2,6 +2,7 @@
 #define UTIL_AQUILA_VK_TYPES_HPP
 
 #include <iostream>
+#include <deque>
 
 #define VULKAN_HPP_NO_EXCEPTIONS
 #define VULKAN_HPP_ASSERT_ON_RESULT
@@ -33,6 +34,16 @@ namespace aq {
             vk::Device device;
         };
     }
+
+    class DeletionQueue {
+    public:
+        void push_function(std::function<void()>&& function);
+        void flush();
+        void swap(DeletionQueue other);
+        
+    private:
+        std::deque<std::function<void()>> deletors;
+    };
 
     class AllocatedBuffer {
     public:

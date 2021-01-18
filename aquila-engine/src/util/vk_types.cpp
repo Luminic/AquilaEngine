@@ -4,15 +4,29 @@
 
 namespace aq {
 
+    void DeletionQueue::push_function(std::function<void()>&& function) {
+        deletors.push_back(function);
+    }
+
+    void DeletionQueue::flush() {
+        for (auto it = deletors.rbegin(); it != deletors.rend(); ++it) {
+            (*it)(); // Call functors
+        }
+        deletors.clear();
+    }
+
+    void DeletionQueue::swap(DeletionQueue other) {
+        deletors.swap(other.deletors);
+    }
+
+
     AllocatedBuffer::AllocatedBuffer() : buffer(nullptr), allocation(nullptr), allocator(nullptr) {}
 
     bool AllocatedBuffer::allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage) {
-        vk::BufferCreateInfo buffer_create_info(
-            {},
-            allocation_size,
-            usage,
-            vk::SharingMode::eExclusive
-        );
+        vk::BufferCreateInfo buffer_create_info = vk::BufferCreateInfo()
+            .setSize(allocation_size)
+            .setUsage(usage)
+            .setSharingMode(vk::SharingMode::eExclusive);
 
         vma::AllocationCreateInfo alloc_create_info({}, memory_usage);
 
@@ -68,16 +82,15 @@ namespace aq {
 
         vk::Extent3D extent(width, height, 1);
 
-        vk::ImageCreateInfo image_create_info(
-            {}, // flags
-            vk::ImageType::e2D,
-            image_format,
-            extent,
-            1, 1, // mip and array layers
-            vk::SampleCountFlagBits::e1, 
-            vk::ImageTiling::eOptimal, 
-            vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst
-        );
+        vk::ImageCreateInfo image_create_info = vk::ImageCreateInfo()
+            .setImageType(vk::ImageType::e2D)
+            .setFormat(image_format)
+            .setExtent(extent)
+            .setMipLevels(1)
+            .setArrayLayers(1)
+            .setSamples(vk::SampleCountFlagBits::e1)
+            .setTiling(vk::ImageTiling::eOptimal)
+            .setUsage(vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
 
         vma::AllocationCreateInfo alloc_create_info({}, vma::MemoryUsage::eGpuOnly);
 
@@ -91,15 +104,12 @@ namespace aq {
 
             vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
 
-            vk::ImageMemoryBarrier image_transfer_memory_barrier(
-                {}, // src access mask
-                vk::AccessFlagBits::eTransferWrite, // dst access mask
-                vk::ImageLayout::eUndefined, // old layout
-                vk::ImageLayout::eTransferDstOptimal, // new layout
-                0, 0, // drc & dst queue family indices (no change so set both to 0)
-                image,
-                subresource_range
-            );
+            vk::ImageMemoryBarrier image_transfer_memory_barrier = vk::ImageMemoryBarrier()
+                .setDstAccessMask(vk::AccessFlagBits::eTransferWrite)
+                .setOldLayout(vk::ImageLayout::eUndefined)
+                .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+                .setImage(image)
+                .setSubresourceRange(subresource_range);
 
             cmd.pipelineBarrier(
                 vk::PipelineStageFlagBits::eTopOfPipe,
@@ -111,27 +121,21 @@ namespace aq {
 
             // Actual data transfer
 
-            vk::BufferImageCopy copy(
-                0, // buffer offset
-                0, 0, // row length, and image height
-                { vk::ImageAspectFlagBits::eColor, 0, 0, 1 }, // image subresource
-                { 0, 0, 0 }, // image offset
-                extent
-            );
+            vk::BufferImageCopy copy = vk::BufferImageCopy()
+                .setImageSubresource({ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+                .setImageExtent(extent);
 
             cmd.copyBufferToImage(staging_buffer.buffer, image, vk::ImageLayout::eTransferDstOptimal, {copy});
 
             // Transition image to be readable by shader
 
-            vk::ImageMemoryBarrier image_read_memory_barrier(
-                vk::AccessFlagBits::eTransferWrite, // src access mask
-                vk::AccessFlagBits::eShaderRead, // dst access mask
-                vk::ImageLayout::eTransferDstOptimal, // old layout
-                vk::ImageLayout::eShaderReadOnlyOptimal, // new layout
-                0, 0, // drc & dst queue family indices (no change so set both to 0)
-                image,
-                subresource_range
-            );
+            vk::ImageMemoryBarrier image_read_memory_barrier = vk::ImageMemoryBarrier()
+                .setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
+                .setDstAccessMask(vk::AccessFlagBits::eShaderRead)
+                .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+                .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+                .setImage(image)
+                .setSubresourceRange(subresource_range);
 
             cmd.pipelineBarrier(
                 vk::PipelineStageFlagBits::eTransfer,

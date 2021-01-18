@@ -78,12 +78,11 @@ namespace aq {
             {vk::ClearDepthStencilValue(1.0f, 0)}
         }};
 
-        vk::RenderPassBeginInfo render_pass_begin_info(
-            render_pass,
-            framebuffers[sw_ch_image_index],
-            vk::Rect2D({0,0}, window_extent),
-            clear_values
-        );
+        vk::RenderPassBeginInfo render_pass_begin_info = vk::RenderPassBeginInfo()
+            .setRenderPass(render_pass)
+            .setFramebuffer(framebuffers[sw_ch_image_index])
+            .setRenderArea(vk::Rect2D({0,0}, window_extent))
+            .setClearValues(clear_values);
 
         fo.main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
@@ -154,13 +153,6 @@ namespace aq {
             {0, 0, sizeof(int32_t)}
         }};
 
-        /*
-        vk::SpecializationInfo( 
-            vk::ArrayProxyNoTemporaries<const vk::SpecializationMapEntry> const & mapEntries_, 
-            vk::ArrayProxyNoTemporaries<const T> const & data_ = {}
-        )
-        */
-
         vk::SpecializationInfo triangle_frag_specialization = vk::SpecializationInfo()
             .setMapEntries(triangle_frag_specialization_map)
             .setDataSize(sizeof(max_nr_textures))
@@ -191,25 +183,21 @@ namespace aq {
             .set_input_assembly({{}, vk::PrimitiveTopology::eTriangleList, VK_FALSE})
             .set_viewport_count(1)
             .set_scissor_count(1)
-            .set_rasterization_state({
-                {}, // flags
-                VK_FALSE, // depth clamp
-                VK_FALSE, // rasterizer discard
-                vk::PolygonMode::eFill,
-                vk::CullModeFlagBits::eNone,
-                vk::FrontFace::eClockwise,
-                VK_FALSE, 0.0f, 0.0f, 0.0f, // depth bias info
-                1.0f // line width
-            })
+            .set_rasterization_state( vk::PipelineRasterizationStateCreateInfo()
+                .setDepthClampEnable(VK_FALSE)
+                .setRasterizerDiscardEnable(VK_FALSE)
+                .setPolygonMode(vk::PolygonMode::eFill)
+                .setCullMode(vk::CullModeFlagBits::eNone)
+                .setDepthBiasEnable(VK_FALSE)
+                .setLineWidth(1.0f) )
             .add_color_blend_attachment(PipelineBuilder::default_color_blend_attachment())
             .set_multisample_state(PipelineBuilder::default_multisample_state_one_sample())
-            .set_depth_stencil_state({
-                {}, // flags
-                VK_TRUE, VK_TRUE, // depth test & write
-                vk::CompareOp::eLessOrEqual,
-                VK_FALSE, // depth bounds test
-                VK_FALSE // stencil test
-            })
+            .set_depth_stencil_state( vk::PipelineDepthStencilStateCreateInfo()
+                .setDepthTestEnable(VK_TRUE)
+                .setDepthWriteEnable(VK_TRUE)
+                .setDepthCompareOp(vk::CompareOp::eLessOrEqual)
+                .setDepthBoundsTestEnable(VK_FALSE)
+                .setStencilTestEnable(VK_FALSE) )
             .set_dynamic_state({{}, dynamic_states})
             .set_pipeline_layout(triangle_pipeline_layout);
 
@@ -229,7 +217,6 @@ namespace aq {
     }
 
     bool RenderEngine::init_data() {
-
         // Camera Buffer
 
         size_t camera_data_gpu_size = vk_util::pad_uniform_buffer_size(sizeof(GPUCameraData), gpu_properties.limits.minUniformBufferOffsetAlignment);
@@ -289,14 +276,12 @@ namespace aq {
             std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
                 {camera_buffer.buffer, camera_data_gpu_size * i, camera_data_gpu_size}
             }};
-            vk::WriteDescriptorSet write_desc_set(
-                frame_data[i].global_descriptor, // dst set
-                0, // dst binding
-                0, // dst array element
-                vk::DescriptorType::eUniformBuffer,
-                {}, // image infos
-                buffer_infos
-            );
+            vk::WriteDescriptorSet write_desc_set = vk::WriteDescriptorSet()
+                .setDstSet(frame_data[i].global_descriptor)
+                .setDstBinding(0)
+                .setDescriptorType(vk::DescriptorType::eUniformBuffer)
+                .setBufferInfo(buffer_infos);
+
             device.updateDescriptorSets({write_desc_set}, {});
         }
 

@@ -162,8 +162,9 @@ namespace aq {
             return false;
         }
 
-        if (!init_command_buffers()) return false;
         if (!init_swapchain()) return false;
+        if (!init_depth_image()) return false;
+        if (!init_command_buffers()) return false;
         if (!init_framebuffers()) return false;
         if (!init_swap_chain_sync_structures()) return false;
 
@@ -278,23 +279,15 @@ namespace aq {
         );
 
         std::array<vk::SubpassDescription, 1> subpass_descriptions{
-            vk::SubpassDescription(
-                {}, // flags
-                vk::PipelineBindPoint::eGraphics,
-                {}, // input attachments count
-                color_attachment_refs,
-                {}, // resolve attachments
-                &depth_attachment_ref,
-                {} // preserve attachments
-            )
+            vk::SubpassDescription()
+                .setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
+                .setColorAttachments(color_attachment_refs)
+                .setPDepthStencilAttachment(&depth_attachment_ref)
         };
 
-        vk::RenderPassCreateInfo render_pass_info(
-            {}, // flags
-            attachment_descriptions,
-            subpass_descriptions,
-            {} // Subpass dependencies
-        );
+        vk::RenderPassCreateInfo render_pass_info = vk::RenderPassCreateInfo()
+            .setAttachments(attachment_descriptions)
+            .setSubpasses(subpass_descriptions);
 
         vk::Result crp_result;
         std::tie(crp_result, render_pass) = device.createRenderPass(render_pass_info);
@@ -368,75 +361,70 @@ namespace aq {
             min_image_count = std::clamp(min_image_count, sw_ch_support.capabilities.minImageCount, sw_ch_support.capabilities.maxImageCount);
         }
 
+        // Actually create swapchain
+
+        vk::SwapchainCreateInfoKHR swap_chain_create_info = vk::SwapchainCreateInfoKHR()
+            .setSurface(surface)
+            .setMinImageCount(min_image_count)
+            .setImageFormat(surface_format.format)
+            .setImageColorSpace(surface_format.colorSpace)
+            .setImageExtent(window_extent)
+            .setImageArrayLayers(1)
+            .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
+            .setImageSharingMode(vk::SharingMode::eExclusive)
+            .setPreTransform(sw_ch_support.capabilities.currentTransform)
+            .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
+            .setPresentMode(present_mode)
+            .setClipped(VK_TRUE);
+
+        vk::Result csc_result;
+        std::tie(csc_result, swap_chain) = device.createSwapchainKHR(swap_chain_create_info);
+        CHECK_VK_RESULT_R(csc_result, false, "Failed to create swap chain");
+
+        swap_chain_deletion_queue.push_function([this]() { device.destroySwapchainKHR(swap_chain); });
+
+        return true;
+    }
+
+    bool InitializationEngine::init_depth_image() {
         // Create depth buffer
         vk::Extent3D depth_image_extent(window_extent.width, window_extent.height, 1);
 
-        vk::ImageCreateInfo depth_img_info(
-            {}, // Flags
-            vk::ImageType::e2D,
-            depth_format,
-            depth_image_extent,
-            1, // mip levels
-            1, // array layers
-            vk::SampleCountFlagBits::e1,
-            vk::ImageTiling::eOptimal,
-            vk::ImageUsageFlagBits::eDepthStencilAttachment
-        );
+        vk::ImageCreateInfo depth_img_info = vk::ImageCreateInfo()
+            .setImageType(vk::ImageType::e2D)
+            .setFormat(depth_format)
+            .setExtent(depth_image_extent)
+            .setMipLevels(1)
+            .setArrayLayers(1)
+            .setSamples(vk::SampleCountFlagBits::e1)
+            .setTiling(vk::ImageTiling::eOptimal)
+            .setUsage(vk::ImageUsageFlagBits::eDepthStencilAttachment);
 
-        vma::AllocationCreateInfo depth_img_alloc_info(
-            {}, // Allocation create flags
-            vma::MemoryUsage::eGpuOnly,
-            vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eDeviceLocal)
-        );
+        vma::AllocationCreateInfo depth_img_alloc_info = vma::AllocationCreateInfo()
+            .setUsage(vma::MemoryUsage::eGpuOnly)
+            .setRequiredFlags(vk::MemoryPropertyFlagBits::eDeviceLocal);
 
         auto [cdi_result, img_alloc] = allocator.createImage(depth_img_info, depth_img_alloc_info);
         depth_image.set(img_alloc);
         CHECK_VK_RESULT_R(cdi_result, false, "Failed to create depth image");
         swap_chain_deletion_queue.push_function([this]() { allocator.destroyImage(depth_image.image, depth_image.allocation); });
 
-        vk::ImageViewCreateInfo depth_img_view_info(
-            {}, // flags
-            depth_image.image,
-            vk::ImageViewType::e2D,
-            depth_format,
-            {vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity},
-            { // subresource range
-                vk::ImageAspectFlagBits::eDepth,
-                0, // base mip level
-                1, // level count
-                0, // base array level
-                1 // layer count
-            }
-        );
+        vk::ImageViewCreateInfo depth_img_view_info = vk::ImageViewCreateInfo()
+            .setImage(depth_image.image)
+            .setViewType(vk::ImageViewType::e2D)
+            .setFormat(depth_format)
+            .setComponents({vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity})
+            .setSubresourceRange( vk::ImageSubresourceRange()
+                .setAspectMask(vk::ImageAspectFlagBits::eDepth)
+                .setBaseMipLevel(0)
+                .setLevelCount(1)
+                .setBaseArrayLayer(0)
+                .setLayerCount(1) );
 
         vk::Result cdiv_result;
         std::tie(cdiv_result, depth_image_view) = device.createImageView(depth_img_view_info);
         CHECK_VK_RESULT_R(cdiv_result, false, "Failed to create depth image view");
         swap_chain_deletion_queue.push_function([this]() { device.destroyImageView(depth_image_view); });
-
-        // Actually create swapchain
-        vk::SwapchainCreateInfoKHR swap_chain_create_info(
-            {}, // flags
-            surface,
-            min_image_count,
-            surface_format.format,
-            surface_format.colorSpace,
-            window_extent,
-            1, // image array layers
-            vk::ImageUsageFlagBits::eColorAttachment,
-            vk::SharingMode::eExclusive,
-            {}, // queue family array
-            sw_ch_support.capabilities.currentTransform, // pre-transform
-            vk::CompositeAlphaFlagBitsKHR::eOpaque,
-            present_mode,
-            VK_TRUE, // clipped
-            {} // old swapchain
-        );
-
-        vk::Result csc_result;
-        std::tie(csc_result, swap_chain) = device.createSwapchainKHR(swap_chain_create_info);
-        CHECK_VK_RESULT_R(csc_result, false, "Failed to create swap chain");
-        swap_chain_deletion_queue.push_function([this]() { device.destroySwapchainKHR(swap_chain); });
 
         return true;
     }
@@ -457,25 +445,18 @@ namespace aq {
         image_count = swap_chain_images.size();
 
         swap_chain_image_views.resize(image_count);
-        vk::ImageViewCreateInfo image_view_create_info(
-            {}, // flags
-            {}, // image (set later)
-            vk::ImageViewType::e2D,
-            surface_format.format,
-            vk::ComponentMapping(
-                vk::ComponentSwizzle::eIdentity,
-                vk::ComponentSwizzle::eIdentity,
-                vk::ComponentSwizzle::eIdentity,
-                vk::ComponentSwizzle::eIdentity
-            ),
-            vk::ImageSubresourceRange(
-                vk::ImageAspectFlagBits::eColor,
-                0, // baseMipLevel
-                1, // levelCount
-                0, // baseArrayLayer
-                1 // layerCount
-            )
-        );
+
+        vk::ImageViewCreateInfo image_view_create_info = vk::ImageViewCreateInfo()
+            .setViewType(vk::ImageViewType::e2D)
+            .setFormat(surface_format.format)
+            .setComponents( vk::ComponentMapping(vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity) )
+            .setSubresourceRange( vk::ImageSubresourceRange()
+                .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                .setBaseMipLevel(0)
+                .setLevelCount(1)
+                .setBaseArrayLayer(0)
+                .setLayerCount(1) );
+
         for (uint32_t i=0; i<image_count; ++i) {
             image_view_create_info.image = swap_chain_images[i];
             vk::Result civ_result;
@@ -484,14 +465,12 @@ namespace aq {
         }
 
         framebuffers.resize(image_count);
-        vk::FramebufferCreateInfo fb_create_info(
-            {}, // flags
-            render_pass,
-            {}, // image view(s) (set later)
-            window_extent.width,
-            window_extent.height,
-            1 // layers
-        );
+        
+        vk::FramebufferCreateInfo fb_create_info = vk::FramebufferCreateInfo()
+            .setRenderPass(render_pass)
+            .setWidth(window_extent.width)
+            .setHeight(window_extent.height)
+            .setLayers(1);
 
         std::array<vk::ImageView, 2> attachments({nullptr, depth_image_view});
         for (uint32_t i=0; i<image_count; ++i) {
