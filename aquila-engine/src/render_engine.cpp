@@ -253,7 +253,7 @@ namespace aq {
         // Global desc. set layout
         std::array<vk::DescriptorSetLayoutBinding, 1> buffer_bindings{{
             // Camera buffer binding
-            { 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex }
+            { 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment }
         }};
         vk::DescriptorSetLayoutCreateInfo desc_set_create_info({}, buffer_bindings);
 
@@ -359,7 +359,10 @@ namespace aq {
         fo.main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
 
         size_t camera_data_gpu_size = vk_util::pad_uniform_buffer_size(sizeof(GPUCameraData), gpu_properties.limits.minUniformBufferOffsetAlignment);
-        GPUCameraData camera_data{camera->get_projection_matrix() * camera->get_view_matrix()};
+        GPUCameraData camera_data{
+            camera->get_projection_matrix() * camera->get_view_matrix(),
+            glm::vec4(camera->get_position(), 1.0f)
+        };
         memcpy(p_cam_buff_mem + camera_data_gpu_size*frame_index, &camera_data, sizeof(GPUCameraData));
 
         fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});

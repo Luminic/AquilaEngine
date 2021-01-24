@@ -23,6 +23,7 @@ namespace aq {
 
     struct GPUCameraData {
         glm::mat4 view_projection;
+        glm::vec4 camera_position;
     };
 
     class RenderEngine : public InitializationEngine {
