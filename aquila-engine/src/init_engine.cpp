@@ -4,9 +4,6 @@
 
 #include <SDL2/SDL_vulkan.h>
 
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
-
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace aq {

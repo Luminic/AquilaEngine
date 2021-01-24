@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 
 #include "util/vk_types.hpp"
+#include "util/vk_resizable_buffer.hpp"
 #include "scene/aq_texture.hpp"
 
 
@@ -109,14 +110,20 @@ namespace aq {
         void create_descriptor_set();
 
         vk::DescriptorSetLayout get_descriptor_set_layout() { return desc_set_layout; };
-        vk::DescriptorSet get_descriptor_set(uint frame) { return desc_sets[frame]; };
+        vk::DescriptorSet get_descriptor_set(uint frame) { return buffer_datas[frame].desc_set; };
 
         std::shared_ptr<Material> default_material;
 
     private:
-        AllocatedBuffer material_buffer; // Has `allocation_size` memory
-        unsigned char* p_mat_buff_mem;
-        vk::DeviceSize allocation_size; // calculated as `frame_overlap * nr_materials * pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment)`
+        // ResizableBuffer material_buffer; // Has `allocation_size` memory
+        // unsigned char* p_mat_buff_mem;
+        struct BufferData {
+            ResizableBuffer material_buffer;
+            unsigned char* p_mat_buff_mem;
+            vk::DescriptorSet desc_set;
+        };
+        std::vector<BufferData> buffer_datas;
+        // vk::DeviceSize allocation_size; // calculated as `frame_overlap * nr_materials * pad_uniform_buffer_size(sizeof(Material::Properties), min_ubo_alignment)`
 
         std::vector<std::weak_ptr<Material>> materials;
         // When materials are pushed into `materials` their index is added to `updated_materials`
@@ -135,7 +142,7 @@ namespace aq {
 
         size_t nr_materials;
         uint max_nr_textures;
-        uint frame_overlap;
+        // uint frame_overlap;
         vk::DeviceSize min_ubo_alignment;
         vma::Allocator* allocator;
         vk_util::UploadContext ctx;
@@ -144,7 +151,7 @@ namespace aq {
 
         vk::DescriptorPool desc_pool; // Separate pool for material data
         vk::DescriptorSetLayout desc_set_layout;
-        std::vector<vk::DescriptorSet> desc_sets;
+        // std::vector<vk::DescriptorSet> desc_sets;
     };
 
 }

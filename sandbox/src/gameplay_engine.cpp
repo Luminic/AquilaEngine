@@ -150,16 +150,16 @@ void GameplayEngine::init_meshes() {
     triangle_mesh->material->textures[aq::Material::Albedo] = std::make_shared<aq::Texture>((resource_path + "happy-tree.png").c_str());
 
 
-    // aq::ModelLoader model_loader(resource_path, "monkey.obj");
+    aq::ModelLoader model_loader(resource_path, "monkey.obj");
 
-    // glm::quat small_y_rot = glm::quat(glm::vec3(0.0f, -3.1415f / 4, 0.0f));
-    // auto prev = aquila_engine.root_node;
-    // for (uint i=0; i<30; ++i) {
-    //     std::shared_ptr<aq::Node> child = std::make_shared<aq::Node>(glm::vec4(4.0f,-0.8f,0.0f,1.0f), small_y_rot);
-    //     prev->add_node(child);
-    //     child->add_node(model_loader.get_root_node());
-    //     prev = child;
-    // }
+    glm::quat small_y_rot = glm::quat(glm::vec3(0.0f, -3.1415f / 4, 0.0f));
+    auto prev = aquila_engine.root_node;
+    for (uint i=0; i<30; ++i) {
+        std::shared_ptr<aq::Node> child = std::make_shared<aq::Node>(glm::vec4(4.0f,-0.8f,0.0f,1.0f), small_y_rot);
+        prev->add_node(child);
+        child->add_node(model_loader.get_root_node());
+        prev = child;
+    }
 
     aquila_engine.root_node->rotation = glm::quat(glm::vec3(0.0f, 3.1415f, 0.0f));
 
@@ -174,6 +174,6 @@ void GameplayEngine::init_meshes() {
 
     aquila_engine.upload_meshes();
     aquila_engine.upload_materials({triangle_mesh->material});
-    // aquila_engine.upload_materials(model_loader.get_materials());
+    aquila_engine.upload_materials(model_loader.get_materials());
     aquila_engine.upload_materials(model_loader2.get_materials());
 }

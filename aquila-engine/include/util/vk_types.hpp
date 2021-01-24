@@ -54,7 +54,8 @@ namespace aq {
         bool upload(void* data, vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage);
         void destroy(); // Only works if the object was allocated/uploaded with a member function
 
-        void set(const std::pair<vk::Buffer, vma::Allocation>& lhs);
+        void set(const std::pair<vk::Buffer, vma::Allocation>& rhs);
+        AllocatedBuffer& operator=(const AllocatedBuffer& rhs);
 
         vk::Buffer buffer;
         vma::Allocation allocation;
@@ -69,7 +70,7 @@ namespace aq {
         bool upload(void* data, int width, int height, vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
         void destroy(); // Only works if the object was allocated/uploaded with a member function
 
-        void set(const std::pair<vk::Image, vma::Allocation>& lhs);
+        void set(const std::pair<vk::Image, vma::Allocation>& rhs);
 
         vk::Image image;
         vma::Allocation allocation;

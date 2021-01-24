@@ -23,16 +23,27 @@ namespace aq {
     bool MaterialManager::init(size_t nr_materials, uint max_nr_textures, uint frame_overlap, vma::Allocator* allocator, vk_util::UploadContext upload_context) {
         this->nr_materials = nr_materials;
         this->max_nr_textures = max_nr_textures;
-        this->frame_overlap = frame_overlap;
+        // this->frame_overlap = frame_overlap;
         this->allocator = allocator;
         this->ctx = upload_context;
 
-        allocation_size = frame_overlap * nr_materials * sizeof(Material::Properties);
-        material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
+        buffer_datas.resize(frame_overlap);
 
-        auto[mm_res, buff_mem] = allocator->mapMemory(material_buffer.allocation);
-        CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
-        p_mat_buff_mem = (unsigned char*)buff_mem;
+        // allocation_size = frame_overlap * nr_materials * sizeof(Material::Properties);
+        vk::DeviceSize allocation_size = nr_materials * sizeof(Material::Properties);
+        for (auto& buffer_data : buffer_datas) {
+            buffer_data.material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
+
+            auto[mm_res, buff_mem] = allocator->mapMemory(buffer_data.material_buffer.get_allocation());
+            CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
+            buffer_data.p_mat_buff_mem = (unsigned char*)buff_mem;
+            std::cout << "mapping buffer " << buffer_data.material_buffer.get_buffer() << " memory at address: " << (void*) buffer_data.p_mat_buff_mem << std::endl;
+        }
+        // material_buffer.allocate(allocator, nr_materials * sizeof(Material::Properties), vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
+
+        // auto[mm_res, buff_mem] = allocator->mapMemory(material_buffer.allocation);
+        // CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
+        // p_mat_buff_mem = (unsigned char*)buff_mem;
 
         // Create Sampler for textures
 
@@ -92,7 +103,7 @@ namespace aq {
 
     void MaterialManager::update_material(std::shared_ptr<Material> material) {
         assert(material->manager == this);
-        if (material->uploaded_buffers.size() >= frame_overlap) {
+        if (material->uploaded_buffers.size() >= buffer_datas.size()) {
             updated_materials.push_back(material->material_index);
         }
         material->uploaded_buffers.clear();
@@ -127,12 +138,19 @@ namespace aq {
                 if (std::find(std::begin(mat->uploaded_buffers), std::end(mat->uploaded_buffers), safe_frame) == std::end(mat->uploaded_buffers)) {
                     mat->uploaded_buffers.push_back(safe_frame);
 
-                    vk::DeviceSize offset = get_buffer_offset(safe_frame);
-                    offset += mat->material_index * sizeof(Material::Properties);
-                    memcpy(p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
+                    // vk::DeviceSize offset = get_buffer_offset(safe_frame);
+                    // offset += mat->material_index * sizeof(Material::Properties);
+                    // memcpy(p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
+
+                    vk::DeviceSize offset = mat->material_index * sizeof(Material::Properties);
+                    std::cout << "updating material " << mat << std::endl;
+                    std::cout << " | memory " << (void*) buffer_datas[safe_frame].p_mat_buff_mem << std::endl;
+                    std::cout << " | offset " << offset << std::endl;
+                    std::cout << " | size " << sizeof(Material::Properties) << std::endl;
+                    memcpy(buffer_datas[safe_frame].p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
                 }
 
-                if (mat->uploaded_buffers.size() >= frame_overlap)
+                if (mat->uploaded_buffers.size() >= buffer_datas.size())
                     it = updated_materials.erase(it);
                 else
                     ++it;
@@ -155,7 +173,7 @@ namespace aq {
                 image_infos.push_back(textures[it2->first]->get_image_info());
 
                 vk::WriteDescriptorSet write_tex_desc_set(
-                    desc_sets[safe_frame], // dst set
+                    buffer_datas[safe_frame].desc_set, // dst set
                     2, // dst binding
                     it2->first, // dst array element
                     1, // descriptor count
@@ -166,7 +184,7 @@ namespace aq {
                 descriptor_writes.push_back(write_tex_desc_set);
             }
 
-            if (it2->second.size() >= frame_overlap) {
+            if (it2->second.size() >= buffer_datas.size()) {
                 it2 = added_textures.erase(it2);
             } else {
                 ++it2;
@@ -195,14 +213,16 @@ namespace aq {
     }
 
     void MaterialManager::create_descriptor_set() {
+        std::cout << "buff dat size " << buffer_datas.size() << std::endl;
+
         // Descriptor pool
 
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
-            {vk::DescriptorType::eStorageBuffer, frame_overlap},
-            {vk::DescriptorType::eSampler, frame_overlap},
-            {vk::DescriptorType::eSampledImage, max_nr_textures * frame_overlap},
+            {vk::DescriptorType::eStorageBuffer, (uint32_t) buffer_datas.size()},
+            {vk::DescriptorType::eSampler, (uint32_t) buffer_datas.size()},
+            {vk::DescriptorType::eSampledImage, uint32_t(max_nr_textures * buffer_datas.size())},
         }};
-        vk::DescriptorPoolCreateInfo desc_pool_create_info({}, (max_nr_textures + 2) * frame_overlap, descriptor_pool_sizes);
+        vk::DescriptorPoolCreateInfo desc_pool_create_info({}, (max_nr_textures + 2) * buffer_datas.size(), descriptor_pool_sizes);
 
         vk::Result cdp_result;
         std::tie(cdp_result, desc_pool) = ctx.device.createDescriptorPool(desc_pool_create_info);
@@ -224,22 +244,26 @@ namespace aq {
         // Descriptor sets
 
         std::vector<vk::DescriptorSetLayout> desc_set_layouts;
-        desc_set_layouts.reserve(frame_overlap);
-        for (uint i=0; i<frame_overlap; ++i) { desc_set_layouts.push_back(desc_set_layout); }
-        vk::DescriptorSetAllocateInfo mat_desc_set_alloc_info(desc_pool, frame_overlap, desc_set_layouts.data());
+        desc_set_layouts.reserve(buffer_datas.size());
+        for (uint i=0; i<buffer_datas.size(); ++i) { desc_set_layouts.push_back(desc_set_layout); }
+        vk::DescriptorSetAllocateInfo mat_desc_set_alloc_info(desc_pool, buffer_datas.size(), desc_set_layouts.data());
 
-        vk::Result atds_res;
-        std::tie(atds_res, desc_sets) = ctx.device.allocateDescriptorSets(mat_desc_set_alloc_info);
-        CHECK_VK_RESULT(atds_res, "Failed to allocate descriptor set");
+        auto[atds_res, desc_sets] = ctx.device.allocateDescriptorSets(mat_desc_set_alloc_info);
+        CHECK_VK_RESULT(atds_res, "Failed to allocate descriptor sets");
 
-        for (uint i=0; i<frame_overlap; ++i) {
+        for (uint i=0; i<buffer_datas.size(); ++i) {
+            buffer_datas[i].desc_set = desc_sets[i];
+
             std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
                 {
-                    material_buffer.buffer, 
-                    i * nr_materials * sizeof(Material::Properties), // offset
+                    buffer_datas[i].material_buffer.get_buffer(), 
+                    // i * nr_materials * sizeof(Material::Properties), // offset
+                    // nr_materials * sizeof(Material::Properties) // size
+                    0, // offset
                     nr_materials * sizeof(Material::Properties) // size
                 }
             }};
+            std::cout << "creating descriptor for buffer " << buffer_datas[i].material_buffer.get_buffer() << std::endl;
             vk::WriteDescriptorSet write_buff_desc_set(
                 desc_sets[i], // dst set
                 0, // dst binding
@@ -283,7 +307,10 @@ namespace aq {
         ctx.device.destroyDescriptorSetLayout(desc_set_layout);
         ctx.device.destroySampler(default_sampler);
         ctx.device.destroyDescriptorPool(desc_pool);
-        material_buffer.destroy();
+        // material_buffer.destroy();
+        for (auto& buffer_data : buffer_datas) {
+            buffer_data.material_buffer.destroy();
+        }
 
         materials.clear();
         updated_materials.clear();

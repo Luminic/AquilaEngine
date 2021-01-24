@@ -1,5 +1,8 @@
 #include "util/vk_types.hpp"
 
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+
 #include "util/vk_utility.hpp"
 
 namespace aq {
@@ -61,9 +64,16 @@ namespace aq {
         }
     }
 
-    void AllocatedBuffer::set(const std::pair<vk::Buffer, vma::Allocation>& lhs) {
-        buffer = lhs.first;
-        allocation = lhs.second;
+    void AllocatedBuffer::set(const std::pair<vk::Buffer, vma::Allocation>& rhs) {
+        buffer = rhs.first;
+        allocation = rhs.second;
+    }
+
+    AllocatedBuffer& AllocatedBuffer::operator=(const AllocatedBuffer& rhs) {
+        buffer = rhs.buffer;
+        allocation = rhs.allocation;
+        allocator = rhs.allocator;
+        return *this;
     }
 
 
@@ -165,9 +175,9 @@ namespace aq {
         }
     }
 
-    void AllocatedImage::set(const std::pair<vk::Image, vma::Allocation>& lhs) {
-        image = lhs.first;
-        allocation = lhs.second;
+    void AllocatedImage::set(const std::pair<vk::Image, vma::Allocation>& rhs) {
+        image = rhs.first;
+        allocation = rhs.second;
     }
 
 }
