@@ -37,7 +37,6 @@ namespace aq {
             auto[mm_res, buff_mem] = allocator->mapMemory(buffer_data.material_buffer.get_allocation());
             CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
             buffer_data.p_mat_buff_mem = (unsigned char*)buff_mem;
-            std::cout << "mapping buffer " << buffer_data.material_buffer.get_buffer() << " memory at address: " << (void*) buffer_data.p_mat_buff_mem << std::endl;
         }
         // material_buffer.allocate(allocator, nr_materials * sizeof(Material::Properties), vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
 
@@ -131,6 +130,34 @@ namespace aq {
     }
 
     void MaterialManager::update(uint safe_frame) {
+        // Resize buffer if needed
+
+        vk::DeviceSize min_buffer_size = materials.size() * sizeof(Material::Properties);
+        if (buffer_datas[safe_frame].material_buffer.get_size() < min_buffer_size) {
+            // A larger `nr_materials` might already have been calculated by a previous frame
+            if (nr_materials < materials.size()) 
+                nr_materials = materials.size() * 3 / 2;
+
+            vk::DeviceSize new_buffer_size = nr_materials * sizeof(Material::Properties);
+            buffer_datas[safe_frame].material_buffer.resize(new_buffer_size, ctx);
+
+            auto[mm_res, buff_mem] = allocator->mapMemory(buffer_datas[safe_frame].material_buffer.get_allocation());
+            CHECK_VK_RESULT(mm_res, "Failed to map material buffer memory");
+            buffer_datas[safe_frame].p_mat_buff_mem = (unsigned char*)buff_mem;
+
+            std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
+                { buffer_datas[safe_frame].material_buffer.get_buffer(), 0, nr_materials * sizeof(Material::Properties) }
+            }};
+            vk::WriteDescriptorSet write_buff_desc_set = vk::WriteDescriptorSet()
+                .setDstSet(buffer_datas[safe_frame].desc_set)
+                .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                .setBufferInfo(buffer_infos);
+
+            ctx.device.updateDescriptorSets({write_buff_desc_set}, {});
+        }
+
+        // Update buffers
+
         auto it = updated_materials.begin();
         while (it != updated_materials.end()) {
             std::shared_ptr<Material> mat = materials[*it].lock();
@@ -138,15 +165,7 @@ namespace aq {
                 if (std::find(std::begin(mat->uploaded_buffers), std::end(mat->uploaded_buffers), safe_frame) == std::end(mat->uploaded_buffers)) {
                     mat->uploaded_buffers.push_back(safe_frame);
 
-                    // vk::DeviceSize offset = get_buffer_offset(safe_frame);
-                    // offset += mat->material_index * sizeof(Material::Properties);
-                    // memcpy(p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
-
                     vk::DeviceSize offset = mat->material_index * sizeof(Material::Properties);
-                    std::cout << "updating material " << mat << std::endl;
-                    std::cout << " | memory " << (void*) buffer_datas[safe_frame].p_mat_buff_mem << std::endl;
-                    std::cout << " | offset " << offset << std::endl;
-                    std::cout << " | size " << sizeof(Material::Properties) << std::endl;
                     memcpy(buffer_datas[safe_frame].p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
                 }
 
@@ -172,15 +191,14 @@ namespace aq {
 
                 image_infos.push_back(textures[it2->first]->get_image_info());
 
-                vk::WriteDescriptorSet write_tex_desc_set(
-                    buffer_datas[safe_frame].desc_set, // dst set
-                    2, // dst binding
-                    it2->first, // dst array element
-                    1, // descriptor count
-                    vk::DescriptorType::eSampledImage,
-                    &image_infos.back(), // image infos
-                    nullptr // buffer infos
-                );
+                vk::WriteDescriptorSet write_tex_desc_set = vk::WriteDescriptorSet()
+                    .setDstSet(buffer_datas[safe_frame].desc_set)
+                    .setDstBinding(2)
+                    .setDstArrayElement(it2->first)
+                    .setDescriptorType(vk::DescriptorType::eSampledImage)
+                    .setDescriptorCount(1)
+                    .setPImageInfo(&image_infos.back());
+
                 descriptor_writes.push_back(write_tex_desc_set);
             }
 
@@ -213,8 +231,6 @@ namespace aq {
     }
 
     void MaterialManager::create_descriptor_set() {
-        std::cout << "buff dat size " << buffer_datas.size() << std::endl;
-
         // Descriptor pool
 
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
@@ -255,49 +271,32 @@ namespace aq {
             buffer_datas[i].desc_set = desc_sets[i];
 
             std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
-                {
-                    buffer_datas[i].material_buffer.get_buffer(), 
-                    // i * nr_materials * sizeof(Material::Properties), // offset
-                    // nr_materials * sizeof(Material::Properties) // size
-                    0, // offset
-                    nr_materials * sizeof(Material::Properties) // size
-                }
+                { buffer_datas[i].material_buffer.get_buffer(), 0, nr_materials * sizeof(Material::Properties) }
             }};
-            std::cout << "creating descriptor for buffer " << buffer_datas[i].material_buffer.get_buffer() << std::endl;
-            vk::WriteDescriptorSet write_buff_desc_set(
-                desc_sets[i], // dst set
-                0, // dst binding
-                0, // dst array element
-                vk::DescriptorType::eStorageBuffer,
-                {}, // image infos
-                buffer_infos // buffer infos
-            );
+            vk::WriteDescriptorSet write_buff_desc_set = vk::WriteDescriptorSet()
+                .setDstSet(desc_sets[i])
+                .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                .setBufferInfo(buffer_infos);
 
             std::array<vk::DescriptorImageInfo, 1> sampler_infos{{
                 {default_sampler, nullptr, vk::ImageLayout::eShaderReadOnlyOptimal}
             }};
-            vk::WriteDescriptorSet write_samp_desc_set(
-                desc_sets[i], // dst set
-                1, // dst binding
-                0, // dst array element
-                vk::DescriptorType::eSampler,
-                sampler_infos, // image infos
-                {} // buffer infos
-            );
+            vk::WriteDescriptorSet write_samp_desc_set = vk::WriteDescriptorSet()
+                .setDstSet(desc_sets[i])
+                .setDstBinding(1)
+                .setDescriptorType(vk::DescriptorType::eSampler)
+                .setImageInfo(sampler_infos);
 
             std::vector<vk::DescriptorImageInfo> image_infos;
             image_infos.reserve(max_nr_textures);
             for (size_t i=0; i<max_nr_textures; ++i)
                 image_infos.push_back(textures[0]->get_image_info());
 
-            vk::WriteDescriptorSet write_tex_desc_set(
-                desc_sets[i], // dst set
-                2, // dst binding
-                0, // dst array element
-                vk::DescriptorType::eSampledImage,
-                image_infos, // image infos
-                {} // buffer infos
-            );
+            vk::WriteDescriptorSet write_tex_desc_set = vk::WriteDescriptorSet()
+                .setDstSet(desc_sets[i])
+                .setDstBinding(2)
+                .setDescriptorType(vk::DescriptorType::eSampledImage)
+                .setImageInfo(image_infos);
 
             ctx.device.updateDescriptorSets({write_buff_desc_set, write_samp_desc_set, write_tex_desc_set}, {});
         }

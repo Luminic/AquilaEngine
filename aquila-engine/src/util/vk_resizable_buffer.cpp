@@ -1,6 +1,7 @@
 #include "util/vk_resizable_buffer.hpp"
 
 #include <algorithm>
+#include <iostream>
 
 #include "util/vk_utility.hpp"
 
@@ -14,7 +15,7 @@ namespace aq {
         this->allocator = allocator;
         buffer_size = allocation_size;
 
-        return buffer.allocate(allocator, allocation_size, usage, memory_usage);
+        return buffer.allocate(allocator, allocation_size, usage_flags, memory_usage_flags);
     }
 
     bool ResizableBuffer::resize(vk::DeviceSize new_size, const vk_util::UploadContext& ctx, vma::Allocator* allocator) {
