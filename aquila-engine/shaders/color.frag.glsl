@@ -87,33 +87,14 @@ vec3 lighting() {
 		metalness = texture(sampler2D(tex[mat_props.metalness_ti], samp), v_tex_coord).r;
 	}
 
-	vec3 normal = normalize(v_normal.xyz) * vec3(-1.0f, 1.0f, -1.0f); // Flip the y normal because y is down in Vulkan
+	vec3 normal = normalize(v_normal.xyz);
 	vec3 light_direction = -normalize(vec3(-0.3f, 1.0f, 0.3f));
 	vec3 view = normalize(camera.position.xyz - v_position.xyz);
 
 	vec3 BRDF = BRDF_Cook_Torrance2(normal, view, light_direction, roughness, metalness, albedo);
 	return BRDF * vec3(1.0f,1.0f,1.0f) * max(dot(normal, light_direction), 0.0f);
-
-
-	// return max(dot(normal, light_direction),0.0f).xxx;
-	// vec3 refl_dir = reflect(light_direction, normal);
-	// return pow(max(dot(refl_dir, view), 0.0f), 32).xxx + albedo * max(dot(normal, light_direction),0.0f).xxx;
 }
 
 void main() {
-	// MaterialProperties mat_props = material_properties_buffer.material_properties[push_constants.material_index];
-
-	// vec3 diffuse_color;
-
-	// if (mat_props.albedo_ti == 0) {
-	// 	diffuse_color = mat_props.albedo;
-	// } else {
-	// 	diffuse_color = texture(sampler2D(tex[mat_props.albedo_ti], samp), v_tex_coord).rgb;
-	// }
-
-	// vec3 light_direction = normalize(vec3(-0.3f, 1.0f, 0.3f));
-	// vec3 normal = normalize(v_normal.xyz) * vec3(1.0f, -1.0f, 1.0f); // Flip the y normal because y is down in Vulkan
-	// float diffuse = max(dot(light_direction, normal), 0.0f);
-
 	o_color = vec4(lighting(), 1.0f);
 }

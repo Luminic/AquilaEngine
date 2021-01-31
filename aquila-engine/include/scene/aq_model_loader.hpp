@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 
+#include "aq_texture.hpp"
+#include "aq_material.hpp"
 #include "aq_mesh.hpp"
 #include "aq_node.hpp"
 
@@ -32,6 +34,7 @@ namespace aq {
         std::vector<std::shared_ptr<Material>> aq_materials;
 
         std::string directory;
+        std::string file;
     };
 
 }

@@ -46,8 +46,7 @@ namespace aq {
 
     void AquilaEngine::upload_materials(const std::vector<std::shared_ptr<Material>>& materials) {
         for (auto& material : materials) {
-            if (!material->is_managed())
-                render_engine.material_manager.add_material(material);
+            render_engine.material_manager.add_material(material);
         }
     }
 

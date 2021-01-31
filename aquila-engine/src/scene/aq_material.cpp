@@ -23,13 +23,11 @@ namespace aq {
     bool MaterialManager::init(size_t nr_materials, uint max_nr_textures, uint frame_overlap, vma::Allocator* allocator, vk_util::UploadContext upload_context) {
         this->nr_materials = nr_materials;
         this->max_nr_textures = max_nr_textures;
-        // this->frame_overlap = frame_overlap;
         this->allocator = allocator;
         this->ctx = upload_context;
 
         buffer_datas.resize(frame_overlap);
 
-        // allocation_size = frame_overlap * nr_materials * sizeof(Material::Properties);
         vk::DeviceSize allocation_size = nr_materials * sizeof(Material::Properties);
         for (auto& buffer_data : buffer_datas) {
             buffer_data.material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
@@ -38,26 +36,18 @@ namespace aq {
             CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
             buffer_data.p_mat_buff_mem = (unsigned char*)buff_mem;
         }
-        // material_buffer.allocate(allocator, nr_materials * sizeof(Material::Properties), vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
-
-        // auto[mm_res, buff_mem] = allocator->mapMemory(material_buffer.allocation);
-        // CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
-        // p_mat_buff_mem = (unsigned char*)buff_mem;
 
         // Create Sampler for textures
 
-        vk::SamplerCreateInfo sampler_create_info(
-            {}, // flags
-            vk::Filter::eLinear,
-            vk::Filter::eLinear,
-            vk::SamplerMipmapMode::eNearest,
-            vk::SamplerAddressMode::eRepeat,
-            vk::SamplerAddressMode::eRepeat,
-            vk::SamplerAddressMode::eRepeat,
-            0.0f, // mip lod bias
-            VK_FALSE, // anisotropy enable
-            0.0f // max anisotropy
-        );
+        vk::SamplerCreateInfo sampler_create_info = vk::SamplerCreateInfo()
+            .setMagFilter(vk::Filter::eLinear)
+            .setMinFilter(vk::Filter::eLinear)
+            .setMipmapMode(vk::SamplerMipmapMode::eNearest)
+            .setAddressModeU(vk::SamplerAddressMode::eRepeat)
+            .setAddressModeV(vk::SamplerAddressMode::eRepeat)
+            .setAddressModeW(vk::SamplerAddressMode::eRepeat)
+            .setMipLodBias(0.0f)
+            .setAnisotropyEnable(VK_FALSE);
 
         vk::Result cs_result;
         std::tie(cs_result, default_sampler) = ctx.device.createSampler(sampler_create_info);
@@ -65,23 +55,22 @@ namespace aq {
 
         // Placeholder texture
         std::string placeholder_texture_path = std::string(AQUILA_ENGINE_PATH) + "/resources/missing_texture.png";
-        textures.push_back(std::make_shared<Texture>(placeholder_texture_path));
+        textures.push_back(std::make_shared<Texture>());
         assert(textures.size() == 1); // Error texture must be the first texture
-        if (!textures[0]->upload_from_file(allocator, ctx)) return false;
+        if (!textures[0]->upload_from_file(placeholder_texture_path, allocator, ctx)) return false;
 
         return true;
     }
 
-    void MaterialManager::add_material(std::shared_ptr<Material> material) {        
-        if (material->manager)
-            std::cerr << "A material can only be managed by one manager at a time." << std::endl;
-        material->manager = this;
-        material->material_index = materials.size();
-        material->uploaded_buffers.clear();
+    void MaterialManager::add_material(std::shared_ptr<Material> material) {
+        // Material was already added
+        if (material_indices.find(material) != material_indices.end())
+            return;
 
-        materials.push_back(material);
-
-        updated_materials.push_back(material->material_index);
+        uint material_index = material_datas.size();
+        material_datas.push_back({material, {}});
+        updated_materials.push_back(material_index);
+        material_indices[material] = material_index;
 
         if (material->textures[Material::Albedo]) {
             material->properties.albedo_ti = add_texture(material->textures[Material::Albedo]);
@@ -100,22 +89,29 @@ namespace aq {
         }
     }
 
-    void MaterialManager::update_material(std::shared_ptr<Material> material) {
-        assert(material->manager == this);
-        if (material->uploaded_buffers.size() >= buffer_datas.size()) {
-            updated_materials.push_back(material->material_index);
-        }
-        material->uploaded_buffers.clear();
+    bool MaterialManager::update_material(std::shared_ptr<Material> material) {
+        auto it = material_indices.find(material);
+        if (it == material_indices.end()) return false;
+        uint material_index = it->second;
+
+        material_datas[material_index].uploaded_buffers.clear();
+
+        // Material is not in `updated_materials` because it was already fully uploaded
+        if (material_datas[material_index].uploaded_buffers.size() >= buffer_datas.size())
+            updated_materials.push_back(material_index);
+
+
+        return true;
     }
 
     uint MaterialManager::add_texture(std::shared_ptr<Texture> texture) {
-        auto tex_it = texture_map.find(texture->get_path());
-        if (tex_it != texture_map.end()) { // Texture was already added
+        auto tex_it = texture_indices.find(texture->get_path());
+        if (tex_it != texture_indices.end()) { // Texture was already added
             return tex_it->second; 
         }
 
         if (!texture->is_uploaded()) {
-            if (!texture->upload_from_file(allocator, ctx)) {
+            if (!texture->upload(allocator, ctx)) {
                 return 0;
             }
         }
@@ -123,7 +119,7 @@ namespace aq {
         uint texture_index = (uint)textures.size();
 
         textures.push_back(texture);
-        texture_map.insert({texture->get_path(), texture_index});
+        texture_indices.insert({texture->get_path(), texture_index});
         added_textures.push_back({texture_index, {}});
 
         return texture_index;
@@ -132,11 +128,11 @@ namespace aq {
     void MaterialManager::update(uint safe_frame) {
         // Resize buffer if needed
 
-        vk::DeviceSize min_buffer_size = materials.size() * sizeof(Material::Properties);
+        vk::DeviceSize min_buffer_size = material_datas.size() * sizeof(Material::Properties);
         if (buffer_datas[safe_frame].material_buffer.get_size() < min_buffer_size) {
             // A larger `nr_materials` might already have been calculated by a previous frame
-            if (nr_materials < materials.size()) 
-                nr_materials = materials.size() * 3 / 2;
+            if (nr_materials < material_datas.size()) 
+                nr_materials = material_datas.size() * 3 / 2;
 
             vk::DeviceSize new_buffer_size = nr_materials * sizeof(Material::Properties);
             buffer_datas[safe_frame].material_buffer.resize(new_buffer_size, ctx);
@@ -160,23 +156,21 @@ namespace aq {
 
         auto it = updated_materials.begin();
         while (it != updated_materials.end()) {
-            std::shared_ptr<Material> mat = materials[*it].lock();
-            if (mat) {
-                if (std::find(std::begin(mat->uploaded_buffers), std::end(mat->uploaded_buffers), safe_frame) == std::end(mat->uploaded_buffers)) {
-                    mat->uploaded_buffers.push_back(safe_frame);
+            std::shared_ptr<Material> mat = material_datas[*it].material;
+            auto& uploaded_buffers = material_datas[*it].uploaded_buffers;
 
-                    vk::DeviceSize offset = mat->material_index * sizeof(Material::Properties);
-                    memcpy(buffer_datas[safe_frame].p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
-                }
+            if (std::find(std::begin(uploaded_buffers), std::end(uploaded_buffers), safe_frame) == std::end(uploaded_buffers)) { // Check if the material still needs updating on this frame
+                uploaded_buffers.push_back(safe_frame);
 
-                if (mat->uploaded_buffers.size() >= buffer_datas.size())
-                    it = updated_materials.erase(it);
-                else
-                    ++it;
-
-            } else {
-                it = updated_materials.erase(it);
+                vk::DeviceSize offset = (*it) * sizeof(Material::Properties);
+                memcpy(buffer_datas[safe_frame].p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
             }
+
+            // Go to the next material index in need of updating
+            if (uploaded_buffers.size() >= buffer_datas.size())
+                it = updated_materials.erase(it);
+            else
+                ++it;
         }
 
         std::vector<vk::WriteDescriptorSet> descriptor_writes;
@@ -218,14 +212,14 @@ namespace aq {
     }
 
     uint MaterialManager::get_material_index(std::shared_ptr<Material> material) {
-        if (material && material->manager == this)
-            return material->material_index;
-        return 0;
+        auto it = material_indices.find(material);
+        if (it == material_indices.end()) return 0; // Material not found so return default material
+        return it->second;
     }
 
     std::shared_ptr<Texture> MaterialManager::get_texture(std::string path) {
-        auto texture_index = texture_map.find(path);
-        if (texture_index != texture_map.end())
+        auto texture_index = texture_indices.find(path);
+        if (texture_index != texture_indices.end())
             return textures[texture_index->second];
         return {};
     }
@@ -311,7 +305,8 @@ namespace aq {
             buffer_data.material_buffer.destroy();
         }
 
-        materials.clear();
+        material_datas.clear();
+        material_indices.clear();
         updated_materials.clear();
 
         // Clearing textures vector will free unused textures

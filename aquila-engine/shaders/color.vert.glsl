@@ -19,7 +19,7 @@ layout (push_constant) uniform FragConstants {
 
 void main() {
 	v_position = push_constants.model * a_position;
-	v_normal = a_normal;
+	v_normal = vec4(transpose(inverse(mat3(push_constants.model))) * a_normal.xyz, 1.0f);
 	v_tex_coord = a_tex_coord;
     gl_Position = camera.view_projection * v_position;
 }

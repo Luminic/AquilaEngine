@@ -30,7 +30,7 @@ namespace aq {
         return glm::quat(from.w, from.x, from.y, from.z);
     }
 
-    ModelLoader::ModelLoader(std::string directory, std::string file) : directory(directory) {
+    ModelLoader::ModelLoader(std::string directory, std::string file) : directory(directory), file(file) {
         std::string path = directory + file;
 
         Assimp::Importer importer;
@@ -69,12 +69,28 @@ namespace aq {
     bool transfer_corresponding_texture(
         aiTextureType ai_tex_type, Material::TextureType aq_tex_type, 
         aiMaterial* ai_material, std::shared_ptr<Material> aq_material,
-        std::string directory
+        std::string directory, std::string file,
+        const struct aiScene* ai_scene
     ) {
         if (ai_material->GetTextureCount(ai_tex_type) >= 1) {
             aiString ai_tex_path;
             ai_material->GetTexture(ai_tex_type, 0, &ai_tex_path);
-            aq_material->textures[aq_tex_type] = std::make_shared<Texture>(directory + ai_tex_path.C_Str());
+            const aiTexture* tex = ai_scene->GetEmbeddedTexture(ai_tex_path.C_Str());
+            if (tex) { // embedded texture
+                std::cout << "embedded texture: " << ai_tex_path.C_Str() << '\n';
+                std::cout << tex->mWidth << '\n';
+                std::cout << tex->mHeight << '\n';
+                std::cout << tex->achFormatHint << '\n';
+                std::string embedded_texture_path = directory + file + "::embedded::" + ai_tex_path.C_Str();
+                std::cout << embedded_texture_path << '\n';
+
+                aq_material->textures[aq_tex_type] = std::make_shared<Texture>();
+                aq_material->textures[aq_tex_type]->upload_later(embedded_texture_path, (unsigned char*)tex->pcData, tex->mWidth, tex->mHeight, tex->achFormatHint);
+
+            } else { // texture in file
+                aq_material->textures[aq_tex_type] = std::make_shared<Texture>();
+                aq_material->textures[aq_tex_type]->upload_later(directory + ai_tex_path.C_Str());
+            }
             return true;
         }
         return false;
@@ -118,20 +134,20 @@ namespace aq {
             ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, color);
             aq_mesh->material->properties.albedo = glm::vec4(ai_to_glm(color), 0.0f);
 
-            if (!transfer_corresponding_texture(aiTextureType_BASE_COLOR, Material::Albedo, ai_material, aq_mesh->material, directory))
-                transfer_corresponding_texture(aiTextureType_DIFFUSE, Material::Albedo, ai_material, aq_mesh->material, directory);
+            if (!transfer_corresponding_texture(aiTextureType_BASE_COLOR, Material::Albedo, ai_material, aq_mesh->material, directory, file, ai_scene))
+                transfer_corresponding_texture(aiTextureType_DIFFUSE, Material::Albedo,     ai_material, aq_mesh->material, directory, file, ai_scene);
 
-            if (!transfer_corresponding_texture(aiTextureType_DIFFUSE_ROUGHNESS, Material::Roughness, ai_material, aq_mesh->material, directory))
-                transfer_corresponding_texture(aiTextureType_SHININESS, Material::Roughness, ai_material, aq_mesh->material, directory);
+            if (!transfer_corresponding_texture(aiTextureType_DIFFUSE_ROUGHNESS, Material::Roughness, ai_material, aq_mesh->material, directory, file, ai_scene))
+                transfer_corresponding_texture(aiTextureType_SHININESS, Material::Roughness,          ai_material, aq_mesh->material, directory, file, ai_scene);
 
-            if (!transfer_corresponding_texture(aiTextureType_METALNESS, Material::Metalness,ai_material, aq_mesh->material, directory))
-                transfer_corresponding_texture(aiTextureType_SPECULAR, Material::Metalness,ai_material, aq_mesh->material, directory);
+            if (!transfer_corresponding_texture(aiTextureType_METALNESS, Material::Metalness, ai_material, aq_mesh->material, directory, file, ai_scene))
+                transfer_corresponding_texture(aiTextureType_SPECULAR, Material::Metalness,   ai_material, aq_mesh->material, directory, file, ai_scene);
 
-            if (!transfer_corresponding_texture(aiTextureType_AMBIENT_OCCLUSION, Material::AmbientOcclusion, ai_material, aq_mesh->material, directory))
-                transfer_corresponding_texture(aiTextureType_AMBIENT, Material::AmbientOcclusion, ai_material, aq_mesh->material, directory);
+            if (!transfer_corresponding_texture(aiTextureType_AMBIENT_OCCLUSION, Material::AmbientOcclusion, ai_material, aq_mesh->material, directory, file, ai_scene))
+                transfer_corresponding_texture(aiTextureType_AMBIENT, Material::AmbientOcclusion,            ai_material, aq_mesh->material, directory, file, ai_scene);
             
-            if (!transfer_corresponding_texture(aiTextureType_NORMAL_CAMERA, Material::Normal, ai_material, aq_mesh->material, directory))
-                transfer_corresponding_texture(aiTextureType_NORMALS, Material::Normal, ai_material, aq_mesh->material, directory);
+            if (!transfer_corresponding_texture(aiTextureType_NORMAL_CAMERA, Material::Normal, ai_material, aq_mesh->material, directory, file, ai_scene))
+                transfer_corresponding_texture(aiTextureType_NORMALS, Material::Normal,        ai_material, aq_mesh->material, directory, file, ai_scene);
         }
 
         return aq_mesh;
