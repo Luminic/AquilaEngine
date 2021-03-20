@@ -13,6 +13,7 @@ add_library(aquila-engine SHARED
     util/vk_types.cpp
     util/vk_utility.cpp
     util/vk_resizable_buffer.cpp
+    util/aq_memory_manager.cpp
     util/pipeline_builder.cpp
 
     scene/aq_vertex.cpp
@@ -35,7 +36,7 @@ target_include_directories(aquila-engine
     PRIVATE ${PROJECT_SOURCE_DIR}/src
 )
 
-target_include_directories(aquila-engine # Header only so include, but don't link
+target_include_directories(aquila-engine # Header only so include but don't link
     PUBLIC ${GLM_PATH}
 )
 
