@@ -6,6 +6,8 @@
                 "${workspaceFolder}/aquila-engine/src",
                 "${workspaceFolder}/aquila-engine/include",
                 "${workspaceFolder}/aquila-engine/third-party/**",
+                "${workspaceFolder}/aquila-engine/third-party/imgui/backends",
+                "${workspaceFolder}/aquila-engine/third-party/imgui/misc/cpp",
                 "${workspaceFolder}/sandbox/src",
                 "${workspaceFolder}/sandbox/include"
             ],

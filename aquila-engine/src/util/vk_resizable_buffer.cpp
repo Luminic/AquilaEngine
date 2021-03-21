@@ -9,13 +9,14 @@ namespace aq {
 
     ResizableBuffer::ResizableBuffer() {}
 
-    bool ResizableBuffer::allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, const vk::BufferUsageFlags& usage, const vma::MemoryUsage& memory_usage) {
+    bool ResizableBuffer::allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, const vk::BufferUsageFlags& usage, const vma::MemoryUsage& memory_usage, vk::MemoryPropertyFlags memory_property_flags) {
+        this->memory_property_flags = memory_property_flags;
         usage_flags = usage | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst;
         memory_usage_flags = memory_usage;
         this->allocator = allocator;
         buffer_size = allocation_size;
 
-        return buffer.allocate(allocator, allocation_size, usage_flags, memory_usage_flags);
+        return buffer.allocate(allocator, allocation_size, usage_flags, memory_usage_flags, memory_property_flags);
     }
 
     bool ResizableBuffer::resize(vk::DeviceSize new_size, const vk_util::UploadContext& ctx, vma::Allocator* allocator) {
@@ -24,7 +25,7 @@ namespace aq {
         // Create the new buffer
 
         AllocatedBuffer new_buffer{};
-        new_buffer.allocate(this->allocator, new_size, usage_flags, memory_usage_flags);
+        new_buffer.allocate(this->allocator, new_size, usage_flags, memory_usage_flags, memory_property_flags);
 
         // Transfer contents of the old buffer into the new one
 

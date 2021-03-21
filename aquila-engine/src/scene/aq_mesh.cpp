@@ -59,7 +59,7 @@ namespace aq {
         vk::DeviceSize iv_buffer_size = indices.size()*sizeof(Index) + vertices.size()*sizeof(Vertex);
 
         AllocatedBuffer buffer_with_data{};
-        buffer_with_data.allocate(allocator, iv_buffer_size, buffer_usage, memory_usage);
+        buffer_with_data.allocate(allocator, iv_buffer_size, buffer_usage, memory_usage, vk::MemoryPropertyFlagBits::eHostCoherent);
         
         // Copy data into buffer
 

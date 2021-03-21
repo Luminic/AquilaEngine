@@ -29,8 +29,6 @@ namespace aq {
 
         // Dear ImGui commands
         ImGui::ShowDemoWindow();
-
-        ImGui::Render();
     }
 
     void RenderEngine::draw(AbstractCamera* camera, std::shared_ptr<Node> object_hierarchy) {
@@ -38,6 +36,8 @@ namespace aq {
             std::cerr << "`VulkanRenderEngine` can only draw when `initialization_state` is `InitializationState::Initialized`" << std::endl;
             return;
         }
+
+        ImGui::Render();
 
         uint64_t timeout{ 1'000'000'000 };
         FrameObjects& fo = get_frame_objects(frame_number);
@@ -220,7 +220,7 @@ namespace aq {
         // Camera Buffer
 
         size_t camera_data_gpu_size = vk_util::pad_uniform_buffer_size(sizeof(GPUCameraData), gpu_properties.limits.minUniformBufferOffsetAlignment);
-        if (!camera_buffer.allocate(&allocator, camera_data_gpu_size * FRAME_OVERLAP, vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu)) return false;
+        if (!camera_buffer.allocate(&allocator, camera_data_gpu_size * FRAME_OVERLAP, vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu, vk::MemoryPropertyFlagBits::eHostCoherent)) return false;
         deletion_queue.push_function([this]() { camera_buffer.destroy(); });
 
         auto[mm_result, buff_mem] = allocator.mapMemory(camera_buffer.allocation);

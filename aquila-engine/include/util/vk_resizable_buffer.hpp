@@ -10,7 +10,7 @@ namespace aq {
         ResizableBuffer();
 
         // Will add `vk::BufferUsageFlagBits::eTransferSrc` and `vk::BufferUsageFlagBits::eTransferDst` to `usage` 
-        bool allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, const vk::BufferUsageFlags& usage, const vma::MemoryUsage& memory_usage);
+        bool allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, const vk::BufferUsageFlags& usage, const vma::MemoryUsage& memory_usage, vk::MemoryPropertyFlags memory_property_flags={});
         // If `allocator` is nullptr (default) the original allocator will be used
         // Ideally shouldn't be called very often.
         // Resizing where `new_size == old_size` will still recreate the buffer (to use the new allocator if provided).
@@ -28,6 +28,7 @@ namespace aq {
 
         vk::BufferUsageFlags usage_flags;
         vma::MemoryUsage memory_usage_flags;
+        vk::MemoryPropertyFlags memory_property_flags;
         vma::Allocator* allocator = nullptr;
     };
 

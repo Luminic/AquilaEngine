@@ -11,21 +11,39 @@ target_include_directories(stb-image INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/stb"
 add_library(imgui SHARED)
 
 target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/imgui")
+target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp")
+target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends")
+
+# target_sources(imgui PRIVATE 
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.h"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp"
+
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_stdlib.h"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_stdlib.cpp"
+
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_demo.cpp"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_draw.cpp"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_tables.cpp"
+
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_impl_vulkan.cpp"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_impl_sdl.cpp"
+# )
 
 target_sources(imgui PRIVATE 
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp"
 
-    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_stdlib.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_stdlib.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp/imgui_stdlib.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp/imgui_stdlib.cpp"
 
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_demo.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_draw.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_tables.cpp"
 
-    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_impl_vulkan.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_impl_sdl.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_sdl.cpp"
 )
 
 target_link_libraries(imgui

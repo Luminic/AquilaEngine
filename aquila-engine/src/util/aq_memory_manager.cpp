@@ -26,7 +26,7 @@ namespace aq {
         for (auto i=0; i<frame_overlap; ++i) {
             auto& buffer = buffers[i];
 
-            buffer.buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
+            buffer.buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu, vk::MemoryPropertyFlagBits::eHostCoherent);
 
             auto mm_res = allocator->mapMemory(buffer.buffer.get_allocation(), (void**) &buffer.buff_mem);
             CHECK_VK_RESULT_R(mm_res, false, "Failed to map buffer");

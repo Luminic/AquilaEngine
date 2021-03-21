@@ -65,7 +65,7 @@ set_target_properties(vma PROPERTIES
 add_library(imgui SHARED IMPORTED)
 
 set_target_properties(imgui PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/home/l/C++/Vulkan/AquilaEngine/aquila-engine/third-party/imgui"
+  INTERFACE_INCLUDE_DIRECTORIES "/home/l/C++/Vulkan/AquilaEngine/aquila-engine/third-party/imgui;/home/l/C++/Vulkan/AquilaEngine/aquila-engine/third-party/imgui/misc/cpp;/home/l/C++/Vulkan/AquilaEngine/aquila-engine/third-party/imgui/backends"
 )
 
 # Import target "aquila-engine" for configuration "Debug"

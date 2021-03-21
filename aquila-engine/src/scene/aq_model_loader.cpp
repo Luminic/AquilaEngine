@@ -77,12 +77,7 @@ namespace aq {
             ai_material->GetTexture(ai_tex_type, 0, &ai_tex_path);
             const aiTexture* tex = ai_scene->GetEmbeddedTexture(ai_tex_path.C_Str());
             if (tex) { // embedded texture
-                std::cout << "embedded texture: " << ai_tex_path.C_Str() << '\n';
-                std::cout << tex->mWidth << '\n';
-                std::cout << tex->mHeight << '\n';
-                std::cout << tex->achFormatHint << '\n';
                 std::string embedded_texture_path = directory + file + "::embedded::" + ai_tex_path.C_Str();
-                std::cout << embedded_texture_path << '\n';
 
                 aq_material->textures[aq_tex_type] = std::make_shared<Texture>();
                 aq_material->textures[aq_tex_type]->upload_later(embedded_texture_path, (unsigned char*)tex->pcData, tex->mWidth, tex->mHeight, tex->achFormatHint);

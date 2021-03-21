@@ -49,9 +49,9 @@ namespace aq {
     public:
         AllocatedBuffer();
 
-        bool allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage);
+        bool allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage, vk::MemoryPropertyFlags memory_property_flags={});
         // Buffer memory must be CPU writeable
-        bool upload(void* data, vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage);
+        bool upload(void* data, vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage, vk::MemoryPropertyFlags memory_property_flags={});
         void destroy(); // Only works if the object was allocated/uploaded with a member function
 
         void set(const std::pair<vk::Buffer, vma::Allocation>& rhs);

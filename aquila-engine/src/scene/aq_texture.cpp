@@ -23,7 +23,6 @@ namespace aq {
         else data_size = (size_t) (width * height);
 
         this->data.insert(std::end(this->data), &data[0], &data[data_size]);
-        std::cout << this->data.size() << '\n';
         this->format_hint = format_hint;
     }
 

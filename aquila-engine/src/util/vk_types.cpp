@@ -25,13 +25,13 @@ namespace aq {
 
     AllocatedBuffer::AllocatedBuffer() : buffer(nullptr), allocation(nullptr), allocator(nullptr) {}
 
-    bool AllocatedBuffer::allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage) {
+    bool AllocatedBuffer::allocate(vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage, vk::MemoryPropertyFlags memory_property_flags) {
         vk::BufferCreateInfo buffer_create_info = vk::BufferCreateInfo()
             .setSize(allocation_size)
             .setUsage(usage)
             .setSharingMode(vk::SharingMode::eExclusive);
 
-        vma::AllocationCreateInfo alloc_create_info({}, memory_usage);
+        vma::AllocationCreateInfo alloc_create_info({}, memory_usage, memory_property_flags);
 
         auto[cb_result, buff_alloc] = allocator->createBuffer(buffer_create_info, alloc_create_info);
         CHECK_VK_RESULT_R(cb_result, false, "Failed to create/allocate mesh");
@@ -42,13 +42,14 @@ namespace aq {
         return true;
     }
 
-    bool AllocatedBuffer::upload(void* data, vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage) {
-        if (!allocate(allocator, allocation_size, usage, memory_usage)) return false;
+    bool AllocatedBuffer::upload(void* data, vma::Allocator* allocator, vk::DeviceSize allocation_size, vk::BufferUsageFlags usage, vma::MemoryUsage memory_usage, vk::MemoryPropertyFlags memory_property_flags) {
+        if (!allocate(allocator, allocation_size, usage, memory_usage, memory_property_flags)) return false;
 
         auto[mm_result, b_memory] = allocator->mapMemory(allocation);
         CHECK_VK_RESULT_R(mm_result, false, "Failed to map mesh buffer memory");
         memcpy(b_memory, data, allocation_size);
         allocator->unmapMemory(allocation);
+        allocator->flushAllocation(allocation, 0, VK_WHOLE_SIZE);
 
         return true;
     }
