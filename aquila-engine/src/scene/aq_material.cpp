@@ -17,7 +17,7 @@ namespace aq {
         // Default (error) material
         default_material = std::make_shared<Material>();
         default_material->properties.albedo = glm::vec4(1.0f, 0.0f, 1.0f, 0.0f);
-        add_material(default_material); // guaranteed to be first
+        // add_material(default_material); // guaranteed to be first
     }
 
     bool MaterialManager::init(size_t nr_materials, uint max_nr_textures, uint frame_overlap, vma::Allocator* allocator, vk_util::UploadContext upload_context) {
@@ -26,16 +26,17 @@ namespace aq {
         this->allocator = allocator;
         this->ctx = upload_context;
 
-        buffer_datas.resize(frame_overlap);
+        // buffer_datas.resize(frame_overlap);
+        descriptor_sets.resize(frame_overlap);
 
-        vk::DeviceSize allocation_size = nr_materials * sizeof(Material::Properties);
-        for (auto& buffer_data : buffer_datas) {
-            buffer_data.material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
+        // vk::DeviceSize allocation_size = nr_materials * sizeof(Material::Properties);
+        // for (auto& buffer_data : buffer_datas) {
+        //     buffer_data.material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
 
-            auto[mm_res, buff_mem] = allocator->mapMemory(buffer_data.material_buffer.get_allocation());
-            CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
-            buffer_data.p_mat_buff_mem = (unsigned char*)buff_mem;
-        }
+        //     auto[mm_res, buff_mem] = allocator->mapMemory(buffer_data.material_buffer.get_allocation());
+        //     CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
+        //     buffer_data.p_mat_buff_mem = (unsigned char*)buff_mem;
+        // }
 
         // Create Sampler for textures
 
@@ -59,6 +60,26 @@ namespace aq {
         assert(textures.size() == 1); // Error texture must be the first texture
         if (!textures[0]->upload_from_file(placeholder_texture_path, allocator, ctx)) return false;
 
+        // Init material buffers
+
+        create_descriptor_sets();
+
+        std::vector<vk::WriteDescriptorSet> write_buff_desc_sets;
+        for (auto& desc_set : descriptor_sets) {
+            write_buff_desc_sets.push_back(vk::WriteDescriptorSet().setDstSet(desc_set));
+        }
+
+        material_memory.init(
+            frame_overlap,
+            sizeof(Material::Properties),
+            50,
+            write_buff_desc_sets.data(),
+            allocator,
+            ctx
+        );
+
+        add_material(default_material);
+
         return true;
     }
 
@@ -67,10 +88,12 @@ namespace aq {
         if (material_indices.find(material) != material_indices.end())
             return;
 
-        uint material_index = material_datas.size();
-        material_datas.push_back({material, {}});
-        updated_materials.push_back(material_index);
-        material_indices[material] = material_index;
+        // uint material_index = material_datas.size();
+        // material_datas.push_back({material, {}});
+        // updated_materials.push_back(material_index);
+        // material_indices[material] = material_index;
+
+
 
         if (material->textures[Material::Albedo]) {
             material->properties.albedo_ti = add_texture(material->textures[Material::Albedo]);
@@ -87,19 +110,17 @@ namespace aq {
         if (material->textures[Material::Normal]) {
             material->properties.normal_ti = add_texture(material->textures[Material::Normal]);
         }
+
+        ManagedMemoryIndex material_index = material_memory.add_object((void*) &material->properties);
+        material_indices[material] = material_index;
     }
 
     bool MaterialManager::update_material(std::shared_ptr<Material> material) {
         auto it = material_indices.find(material);
         if (it == material_indices.end()) return false;
-        uint material_index = it->second;
+        ManagedMemoryIndex material_index = it->second;
 
-        material_datas[material_index].uploaded_buffers.clear();
-
-        // Material is not in `updated_materials` because it was already fully uploaded
-        if (material_datas[material_index].uploaded_buffers.size() >= buffer_datas.size())
-            updated_materials.push_back(material_index);
-
+        material_memory.update_object(material_index, (void*) &material->properties);
 
         return true;
     }
@@ -126,52 +147,53 @@ namespace aq {
     }
 
     void MaterialManager::update(uint safe_frame) {
-        // Resize buffer if needed
+        // // Resize buffer if needed
 
-        vk::DeviceSize min_buffer_size = material_datas.size() * sizeof(Material::Properties);
-        if (buffer_datas[safe_frame].material_buffer.get_size() < min_buffer_size) {
-            // A larger `nr_materials` might already have been calculated by a previous frame
-            if (nr_materials < material_datas.size()) 
-                nr_materials = material_datas.size() * 3 / 2;
+        // vk::DeviceSize min_buffer_size = material_datas.size() * sizeof(Material::Properties);
+        // if (buffer_datas[safe_frame].material_buffer.get_size() < min_buffer_size) {
+        //     // A larger `nr_materials` might already have been calculated by a previous frame
+        //     if (nr_materials < material_datas.size()) 
+        //         nr_materials = material_datas.size() * 3 / 2;
 
-            vk::DeviceSize new_buffer_size = nr_materials * sizeof(Material::Properties);
-            buffer_datas[safe_frame].material_buffer.resize(new_buffer_size, ctx);
+        //     vk::DeviceSize new_buffer_size = nr_materials * sizeof(Material::Properties);
+        //     buffer_datas[safe_frame].material_buffer.resize(new_buffer_size, ctx);
 
-            auto[mm_res, buff_mem] = allocator->mapMemory(buffer_datas[safe_frame].material_buffer.get_allocation());
-            CHECK_VK_RESULT(mm_res, "Failed to map material buffer memory");
-            buffer_datas[safe_frame].p_mat_buff_mem = (unsigned char*)buff_mem;
+        //     auto[mm_res, buff_mem] = allocator->mapMemory(buffer_datas[safe_frame].material_buffer.get_allocation());
+        //     CHECK_VK_RESULT(mm_res, "Failed to map material buffer memory");
+        //     buffer_datas[safe_frame].p_mat_buff_mem = (unsigned char*)buff_mem;
 
-            std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
-                { buffer_datas[safe_frame].material_buffer.get_buffer(), 0, nr_materials * sizeof(Material::Properties) }
-            }};
-            vk::WriteDescriptorSet write_buff_desc_set = vk::WriteDescriptorSet()
-                .setDstSet(buffer_datas[safe_frame].desc_set)
-                .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-                .setBufferInfo(buffer_infos);
+        //     std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
+        //         { buffer_datas[safe_frame].material_buffer.get_buffer(), 0, nr_materials * sizeof(Material::Properties) }
+        //     }};
+        //     vk::WriteDescriptorSet write_buff_desc_set = vk::WriteDescriptorSet()
+        //         .setDstSet(buffer_datas[safe_frame].desc_set)
+        //         .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+        //         .setBufferInfo(buffer_infos);
 
-            ctx.device.updateDescriptorSets({write_buff_desc_set}, {});
-        }
+        //     ctx.device.updateDescriptorSets({write_buff_desc_set}, {});
+        // }
 
-        // Update buffers
+        // // Update buffers
 
-        auto it = updated_materials.begin();
-        while (it != updated_materials.end()) {
-            std::shared_ptr<Material> mat = material_datas[*it].material;
-            auto& uploaded_buffers = material_datas[*it].uploaded_buffers;
+        // auto it = updated_materials.begin();
+        // while (it != updated_materials.end()) {
+        //     std::shared_ptr<Material> mat = material_datas[*it].material;
+        //     auto& uploaded_buffers = material_datas[*it].uploaded_buffers;
 
-            if (std::find(std::begin(uploaded_buffers), std::end(uploaded_buffers), safe_frame) == std::end(uploaded_buffers)) { // Check if the material still needs updating on this frame
-                uploaded_buffers.push_back(safe_frame);
+        //     if (std::find(std::begin(uploaded_buffers), std::end(uploaded_buffers), safe_frame) == std::end(uploaded_buffers)) { // Check if the material still needs updating on this frame
+        //         uploaded_buffers.push_back(safe_frame);
 
-                vk::DeviceSize offset = (*it) * sizeof(Material::Properties);
-                memcpy(buffer_datas[safe_frame].p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
-            }
+        //         vk::DeviceSize offset = (*it) * sizeof(Material::Properties);
+        //         memcpy(buffer_datas[safe_frame].p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
+        //     }
 
-            // Go to the next material index in need of updating
-            if (uploaded_buffers.size() >= buffer_datas.size())
-                it = updated_materials.erase(it);
-            else
-                ++it;
-        }
+        //     // Go to the next material index in need of updating
+        //     if (uploaded_buffers.size() >= buffer_datas.size())
+        //         it = updated_materials.erase(it);
+        //     else
+        //         ++it;
+        // }
+        material_memory.update(safe_frame);
 
         std::vector<vk::WriteDescriptorSet> descriptor_writes;
         // Needed to store the memory for `descriptor_writes` because `vk::WriteDescriptorSet` only keeps a pointer
@@ -186,7 +208,7 @@ namespace aq {
                 image_infos.push_back(textures[it2->first]->get_image_info());
 
                 vk::WriteDescriptorSet write_tex_desc_set = vk::WriteDescriptorSet()
-                    .setDstSet(buffer_datas[safe_frame].desc_set)
+                    .setDstSet(descriptor_sets[safe_frame])
                     .setDstBinding(2)
                     .setDstArrayElement(it2->first)
                     .setDescriptorType(vk::DescriptorType::eSampledImage)
@@ -196,7 +218,7 @@ namespace aq {
                 descriptor_writes.push_back(write_tex_desc_set);
             }
 
-            if (it2->second.size() >= buffer_datas.size()) {
+            if (it2->second.size() >= descriptor_sets.size()) {
                 it2 = added_textures.erase(it2);
             } else {
                 ++it2;
@@ -224,15 +246,15 @@ namespace aq {
         return {};
     }
 
-    void MaterialManager::create_descriptor_set() {
+    void MaterialManager::create_descriptor_sets() {
         // Descriptor pool
 
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
-            {vk::DescriptorType::eStorageBuffer, (uint32_t) buffer_datas.size()},
-            {vk::DescriptorType::eSampler, (uint32_t) buffer_datas.size()},
-            {vk::DescriptorType::eSampledImage, uint32_t(max_nr_textures * buffer_datas.size())},
+            {vk::DescriptorType::eStorageBuffer, (uint32_t) descriptor_sets.size()},
+            {vk::DescriptorType::eSampler, (uint32_t) descriptor_sets.size()},
+            {vk::DescriptorType::eSampledImage, uint32_t(max_nr_textures * descriptor_sets.size())},
         }};
-        vk::DescriptorPoolCreateInfo desc_pool_create_info({}, (max_nr_textures + 2) * buffer_datas.size(), descriptor_pool_sizes);
+        vk::DescriptorPoolCreateInfo desc_pool_create_info({}, (max_nr_textures + 2) * descriptor_sets.size(), descriptor_pool_sizes);
 
         vk::Result cdp_result;
         std::tie(cdp_result, desc_pool) = ctx.device.createDescriptorPool(desc_pool_create_info);
@@ -254,29 +276,30 @@ namespace aq {
         // Descriptor sets
 
         std::vector<vk::DescriptorSetLayout> desc_set_layouts;
-        desc_set_layouts.reserve(buffer_datas.size());
-        for (uint i=0; i<buffer_datas.size(); ++i) { desc_set_layouts.push_back(desc_set_layout); }
-        vk::DescriptorSetAllocateInfo mat_desc_set_alloc_info(desc_pool, buffer_datas.size(), desc_set_layouts.data());
+        desc_set_layouts.reserve(descriptor_sets.size());
+        for (uint i=0; i<descriptor_sets.size(); ++i) { desc_set_layouts.push_back(desc_set_layout); }
+        vk::DescriptorSetAllocateInfo mat_desc_set_alloc_info(desc_pool, descriptor_sets.size(), desc_set_layouts.data());
 
-        auto[atds_res, desc_sets] = ctx.device.allocateDescriptorSets(mat_desc_set_alloc_info);
+        // auto[atds_res, desc_sets] = ctx.device.allocateDescriptorSets(mat_desc_set_alloc_info);
+        vk::Result atds_res = ctx.device.allocateDescriptorSets(&mat_desc_set_alloc_info, descriptor_sets.data());
         CHECK_VK_RESULT(atds_res, "Failed to allocate descriptor sets");
 
-        for (uint i=0; i<buffer_datas.size(); ++i) {
-            buffer_datas[i].desc_set = desc_sets[i];
+        for (uint i=0; i<descriptor_sets.size(); ++i) {
+            // descriptor_sets[i] = desc_sets[i];
 
-            std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
-                { buffer_datas[i].material_buffer.get_buffer(), 0, nr_materials * sizeof(Material::Properties) }
-            }};
-            vk::WriteDescriptorSet write_buff_desc_set = vk::WriteDescriptorSet()
-                .setDstSet(desc_sets[i])
-                .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-                .setBufferInfo(buffer_infos);
+            // std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
+            //     { buffer_datas[i].material_buffer.get_buffer(), 0, nr_materials * sizeof(Material::Properties) }
+            // }};
+            // vk::WriteDescriptorSet write_buff_desc_set = vk::WriteDescriptorSet()
+            //     .setDstSet(desc_sets[i])
+            //     .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+            //     .setBufferInfo(buffer_infos);
 
             std::array<vk::DescriptorImageInfo, 1> sampler_infos{{
                 {default_sampler, nullptr, vk::ImageLayout::eShaderReadOnlyOptimal}
             }};
             vk::WriteDescriptorSet write_samp_desc_set = vk::WriteDescriptorSet()
-                .setDstSet(desc_sets[i])
+                .setDstSet(descriptor_sets[i])
                 .setDstBinding(1)
                 .setDescriptorType(vk::DescriptorType::eSampler)
                 .setImageInfo(sampler_infos);
@@ -287,12 +310,13 @@ namespace aq {
                 image_infos.push_back(textures[0]->get_image_info());
 
             vk::WriteDescriptorSet write_tex_desc_set = vk::WriteDescriptorSet()
-                .setDstSet(desc_sets[i])
+                .setDstSet(descriptor_sets[i])
                 .setDstBinding(2)
                 .setDescriptorType(vk::DescriptorType::eSampledImage)
                 .setImageInfo(image_infos);
 
-            ctx.device.updateDescriptorSets({write_buff_desc_set, write_samp_desc_set, write_tex_desc_set}, {});
+            // ctx.device.updateDescriptorSets({write_buff_desc_set, write_samp_desc_set, write_tex_desc_set}, {});
+            ctx.device.updateDescriptorSets({write_samp_desc_set, write_tex_desc_set}, {});
         }
     }
 
@@ -301,13 +325,15 @@ namespace aq {
         ctx.device.destroySampler(default_sampler);
         ctx.device.destroyDescriptorPool(desc_pool);
         // material_buffer.destroy();
-        for (auto& buffer_data : buffer_datas) {
-            buffer_data.material_buffer.destroy();
-        }
+        // for (auto& buffer_data : buffer_datas) {
+        //     buffer_data.material_buffer.destroy();
+        // }
+        material_memory.destroy();
+        descriptor_sets.clear();
 
-        material_datas.clear();
+        // material_datas.clear();
         material_indices.clear();
-        updated_materials.clear();
+        // updated_materials.clear();
 
         // Clearing textures vector will free unused textures
         textures.clear();

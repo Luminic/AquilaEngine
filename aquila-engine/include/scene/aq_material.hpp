@@ -11,8 +11,8 @@
 
 #include "util/vk_types.hpp"
 #include "util/vk_resizable_buffer.hpp"
+#include "util/aq_memory_manager.hpp"
 #include "scene/aq_texture.hpp"
-
 
 namespace aq {
 
@@ -96,32 +96,35 @@ namespace aq {
         // Otherwise returns null
         std::shared_ptr<Texture> get_texture(std::string path);
 
-        void create_descriptor_set();
-
         vk::DescriptorSetLayout get_descriptor_set_layout() { return desc_set_layout; };
-        vk::DescriptorSet get_descriptor_set(uint frame) { return buffer_datas[frame].desc_set; };
+        // vk::DescriptorSet get_descriptor_set(uint frame) { return buffer_datas[frame].desc_set; };
+        vk::DescriptorSet get_descriptor_set(uint frame) { return descriptor_sets[frame]; };
 
         std::shared_ptr<Material> default_material;
 
     private:
-        struct BufferData {
-            ResizableBuffer material_buffer;
-            unsigned char* p_mat_buff_mem;
-            vk::DescriptorSet desc_set;
-        };
-        std::vector<BufferData> buffer_datas;
+        // struct BufferData {
+        //     ResizableBuffer material_buffer;
+        //     unsigned char* p_mat_buff_mem;
+        //     vk::DescriptorSet desc_set;
+        // };
+        // std::vector<BufferData> buffer_datas;
+        std::vector<vk::DescriptorSet> descriptor_sets;
+        void create_descriptor_sets();
 
-        struct MaterialData {
-            std::shared_ptr<Material> material;
-            std::vector<uint> uploaded_buffers;
-        };
-        std::vector<MaterialData> material_datas;
+        MemoryManager material_memory;
+
+        // struct MaterialData {
+        //     std::shared_ptr<Material> material;
+        //     std::vector<uint> uploaded_buffers;
+        // };
+        // std::vector<MaterialData> material_datas;
         // When materials are pushed into `materials` their index is added to `updated_materials`
         // When `update` is called, `safe_frame` is added to the uint vector for each material in `updated_materials`
         // Once the uint vector contains all the frames (size == `frame_overlap`) the material had been fully uploaded and is
         // removed from the list
-        std::list<uint> updated_materials;
-        std::unordered_map<std::shared_ptr<Material>, uint> material_indices;
+        // std::list<uint> updated_materials;
+        std::unordered_map<std::shared_ptr<Material>, ManagedMemoryIndex> material_indices;
 
         std::vector<std::shared_ptr<Texture>> textures;
         // Similar to `updated_materials` but the vector of frames the texture descriptor has been uploaded to is stored directly in the list
@@ -131,7 +134,7 @@ namespace aq {
 
         size_t nr_materials;
         uint max_nr_textures;
-        vk::DeviceSize min_ubo_alignment;
+
         vma::Allocator* allocator;
         vk_util::UploadContext ctx;
 

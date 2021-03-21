@@ -93,8 +93,8 @@ namespace aq {
                 // Make sure the buffer has enough space
                 size_t size_needed = action.index + action.count;
                 size_t bytes_needed = size_needed * object_size;
-                if (bytes_needed < buffer.buffer.get_size()) { // We need to resize
-                    if (size_needed < buffer_size) { // Calculate new `buffer_size`
+                if (bytes_needed > buffer.buffer.get_size()) { // We need to resize
+                    if (size_needed > buffer_size) { // Calculate new `buffer_size`
                         buffer_size = size_needed*3/2;
                     }
                     // Resize buffer to have enough space
@@ -119,6 +119,7 @@ namespace aq {
                 break;
             }
         }
+        buffer.update_queue.clear();
     }
 
 }

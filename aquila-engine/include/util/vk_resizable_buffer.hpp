@@ -1,3 +1,6 @@
+#ifndef UTIL_AQUILA_RESIZABLE_BUFFER_HPP
+#define UTIL_AQUILA_RESIZABLE_BUFFER_HPP
+
 #include "util/vk_types.hpp"
 
 namespace aq {
@@ -29,3 +32,5 @@ namespace aq {
     };
 
 }
+
+#endif

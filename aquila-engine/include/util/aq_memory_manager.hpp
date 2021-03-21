@@ -1,3 +1,6 @@
+#ifndef UTIL_AQUILA_MEMORY_MANAGER_HPP
+#define UTIL_AQUILA_MEMORY_MANAGER_HPP
+
 #include <vector>
 #include <list>
 #include <deque>
@@ -83,3 +86,5 @@ namespace aq {
     };
 
 }
+
+#endif
