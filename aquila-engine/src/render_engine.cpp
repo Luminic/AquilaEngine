@@ -90,7 +90,7 @@ namespace aq {
         draw_objects(camera, object_hierarchy);
 
         // Render ImGui
-        // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), fo.main_command_buffer);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), fo.main_command_buffer);
 
         fo.main_command_buffer.endRenderPass();
 
@@ -285,8 +285,6 @@ namespace aq {
             device.updateDescriptorSets({write_desc_set}, {});
         }
 
-        // material_manager.create_descriptor_set();
-
         return true;
     }
 
@@ -309,7 +307,7 @@ namespace aq {
 
         vk::Result cdp_res;
         vk::DescriptorPool imgui_desc_pool;
-        std::tie(cdp_res, imgui_desc_pool) = device.createDescriptorPool({{}, 1000, pool_sizes});
+        std::tie(cdp_res, imgui_desc_pool) = device.createDescriptorPool({vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1000, pool_sizes});
         CHECK_VK_RESULT_R(cdp_res, false, "Failed to create descriptor pool for Dear ImGui");
 
         // Initialize Dear ImGui itself

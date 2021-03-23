@@ -46,5 +46,6 @@ _deps
 
 output.txt
 run.sh
+imgui.ini
 
 !sandbox/resources/*

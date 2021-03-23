@@ -42,6 +42,7 @@ namespace aq {
         glm::ivec2 get_render_window_size() const {return render_engine.get_render_window_size();}
         uint64_t get_frame_number() const {return render_engine.get_frame_number();}
         SDL_Window* get_window() { return render_engine.window; }
+        MaterialManager* get_material_manager() { return &render_engine.material_manager; }
 
         std::shared_ptr<Node> root_node;
 

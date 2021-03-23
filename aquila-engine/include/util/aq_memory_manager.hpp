@@ -34,16 +34,18 @@ namespace aq {
         // Release allocated data.
         void destroy();
 
-        // `object` should be a pointer to `object_size` bytes of memory
-        // Returns the index the object will be located at.
+        // `object` should be a pointer to `object_size` bytes of memory.
+        // `object` will be copied; it only needs to be a valid pointer until this function returns
+        // Returns the index `object` will be located at.
         ManagedMemoryIndex add_object(void* object);
 
         // `object` should be a pointer to `object_size` bytes of memory
+        // `object` will be copied; it only needs to be a valid pointer until this function returns
         // Updates object at `index`.
         void update_object(ManagedMemoryIndex index, void* object);
 
         // Marks memory at `index` free
-        // `index` will no longer be a valid pointer.
+        // `index` will no longer be valid.
         void remove_object(ManagedMemoryIndex index);
 
         // Uploads object memory to the GPU for `safe_frame`
@@ -61,13 +63,13 @@ namespace aq {
             uint count = 1;
             size_t index; 
 
-            unsigned char* memory;
-            // size_t memory_size; // not necessary; memory should have size `object_size * count`
+            // `memory` should be an array of size `object_size*count` bytes (uchars)
+            std::shared_ptr<std::byte[]> memory;
         };
 
         struct QueuedBuffer {
             ResizableBuffer buffer;
-            unsigned char* buff_mem;
+            std::byte* buff_mem;
             vk::WriteDescriptorSet write_descriptor;
 
             std::vector<Action> update_queue;

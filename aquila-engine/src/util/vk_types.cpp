@@ -48,8 +48,8 @@ namespace aq {
         auto[mm_result, b_memory] = allocator->mapMemory(allocation);
         CHECK_VK_RESULT_R(mm_result, false, "Failed to map mesh buffer memory");
         memcpy(b_memory, data, allocation_size);
-        allocator->unmapMemory(allocation);
         allocator->flushAllocation(allocation, 0, VK_WHOLE_SIZE);
+        allocator->unmapMemory(allocation);
 
         return true;
     }

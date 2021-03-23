@@ -61,15 +61,19 @@ namespace aq {
             end_index++;
         }
 
+        std::shared_ptr<std::byte[]> memory(new std::byte[object_size]);
+        memcpy(memory.get(), object, object_size);
         for (auto& buffer : buffers) {
-            buffer.update_queue.push_back({Action::Type::Add, 1, object_index, (unsigned char*) object});
+            buffer.update_queue.push_back({Action::Type::Add, 1, object_index, memory});
         }
         return object_index;
     }
 
     void MemoryManager::update_object(ManagedMemoryIndex index, void* object) {
+        std::shared_ptr<std::byte[]> memory(new std::byte[object_size]);
+        memcpy(memory.get(), object, object_size);
         for (auto& buffer : buffers) {
-            buffer.update_queue.push_back({Action::Type::Update, 1, index, (unsigned char*) object});
+            buffer.update_queue.push_back({Action::Type::Update, 1, index, memory});
         }
     }
 
@@ -77,7 +81,6 @@ namespace aq {
         // Make sure `index` isn't already in `free_memory`
         if (std::find(free_memory.begin(), free_memory.end(), index) == free_memory.end()) {
             free_memory.push_back(index);
-
             // Currently I do nothing with the memory of removed objects
             // for (auto& buffer : buffers) {    
             //     buffer.update_queue.push_back({Action::Type::Remove, 1, index, nullptr});
@@ -111,8 +114,8 @@ namespace aq {
             } // Intentional fallthrough to `Action::Type::Update`
             case Action::Type::Update: {
                 assert((action.index + action.count) * object_size <= buffer.buffer.get_size()); // Make sure the location is valid
-                size_t memory_index = action.index * object_size;
-                memcpy(buffer.buff_mem+memory_index, action.memory, action.count*object_size);
+                size_t memory_offset = action.index * object_size;
+                memcpy(buffer.buff_mem+memory_offset, action.memory.get(), action.count*object_size);
             } break;
             case Action::Type::Remove:
                 // Do nothing. If we really want to be safe, we can 0 the memory

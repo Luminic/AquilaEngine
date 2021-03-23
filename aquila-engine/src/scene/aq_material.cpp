@@ -17,7 +17,6 @@ namespace aq {
         // Default (error) material
         default_material = std::make_shared<Material>();
         default_material->properties.albedo = glm::vec4(1.0f, 0.0f, 1.0f, 0.0f);
-        // add_material(default_material); // guaranteed to be first
     }
 
     bool MaterialManager::init(size_t nr_materials, uint max_nr_textures, uint frame_overlap, vma::Allocator* allocator, vk_util::UploadContext upload_context) {
@@ -26,20 +25,9 @@ namespace aq {
         this->allocator = allocator;
         this->ctx = upload_context;
 
-        // buffer_datas.resize(frame_overlap);
         descriptor_sets.resize(frame_overlap);
 
-        // vk::DeviceSize allocation_size = nr_materials * sizeof(Material::Properties);
-        // for (auto& buffer_data : buffer_datas) {
-        //     buffer_data.material_buffer.allocate(allocator, allocation_size, vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
-
-        //     auto[mm_res, buff_mem] = allocator->mapMemory(buffer_data.material_buffer.get_allocation());
-        //     CHECK_VK_RESULT_R(mm_res, false, "Failed to map material buffer memory");
-        //     buffer_data.p_mat_buff_mem = (unsigned char*)buff_mem;
-        // }
-
         // Create Sampler for textures
-
         vk::SamplerCreateInfo sampler_create_info = vk::SamplerCreateInfo()
             .setMagFilter(vk::Filter::eLinear)
             .setMinFilter(vk::Filter::eLinear)
@@ -88,13 +76,6 @@ namespace aq {
         if (material_indices.find(material) != material_indices.end())
             return;
 
-        // uint material_index = material_datas.size();
-        // material_datas.push_back({material, {}});
-        // updated_materials.push_back(material_index);
-        // material_indices[material] = material_index;
-
-
-
         if (material->textures[Material::Albedo]) {
             material->properties.albedo_ti = add_texture(material->textures[Material::Albedo]);
         }
@@ -125,6 +106,17 @@ namespace aq {
         return true;
     }
 
+    bool MaterialManager::remove_material(std::shared_ptr<Material> material) {
+        auto it = material_indices.find(material);
+        if (it == material_indices.end()) return false;
+        ManagedMemoryIndex material_index = it->second;
+        material_indices.erase(it);
+
+        material_memory.remove_object(material_index);
+
+        return true;
+    }
+
     uint MaterialManager::add_texture(std::shared_ptr<Texture> texture) {
         auto tex_it = texture_indices.find(texture->get_path());
         if (tex_it != texture_indices.end()) { // Texture was already added
@@ -147,52 +139,6 @@ namespace aq {
     }
 
     void MaterialManager::update(uint safe_frame) {
-        // // Resize buffer if needed
-
-        // vk::DeviceSize min_buffer_size = material_datas.size() * sizeof(Material::Properties);
-        // if (buffer_datas[safe_frame].material_buffer.get_size() < min_buffer_size) {
-        //     // A larger `nr_materials` might already have been calculated by a previous frame
-        //     if (nr_materials < material_datas.size()) 
-        //         nr_materials = material_datas.size() * 3 / 2;
-
-        //     vk::DeviceSize new_buffer_size = nr_materials * sizeof(Material::Properties);
-        //     buffer_datas[safe_frame].material_buffer.resize(new_buffer_size, ctx);
-
-        //     auto[mm_res, buff_mem] = allocator->mapMemory(buffer_datas[safe_frame].material_buffer.get_allocation());
-        //     CHECK_VK_RESULT(mm_res, "Failed to map material buffer memory");
-        //     buffer_datas[safe_frame].p_mat_buff_mem = (unsigned char*)buff_mem;
-
-        //     std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
-        //         { buffer_datas[safe_frame].material_buffer.get_buffer(), 0, nr_materials * sizeof(Material::Properties) }
-        //     }};
-        //     vk::WriteDescriptorSet write_buff_desc_set = vk::WriteDescriptorSet()
-        //         .setDstSet(buffer_datas[safe_frame].desc_set)
-        //         .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-        //         .setBufferInfo(buffer_infos);
-
-        //     ctx.device.updateDescriptorSets({write_buff_desc_set}, {});
-        // }
-
-        // // Update buffers
-
-        // auto it = updated_materials.begin();
-        // while (it != updated_materials.end()) {
-        //     std::shared_ptr<Material> mat = material_datas[*it].material;
-        //     auto& uploaded_buffers = material_datas[*it].uploaded_buffers;
-
-        //     if (std::find(std::begin(uploaded_buffers), std::end(uploaded_buffers), safe_frame) == std::end(uploaded_buffers)) { // Check if the material still needs updating on this frame
-        //         uploaded_buffers.push_back(safe_frame);
-
-        //         vk::DeviceSize offset = (*it) * sizeof(Material::Properties);
-        //         memcpy(buffer_datas[safe_frame].p_mat_buff_mem + offset, &mat->properties, sizeof(Material::Properties));
-        //     }
-
-        //     // Go to the next material index in need of updating
-        //     if (uploaded_buffers.size() >= buffer_datas.size())
-        //         it = updated_materials.erase(it);
-        //     else
-        //         ++it;
-        // }
         material_memory.update(safe_frame);
 
         std::vector<vk::WriteDescriptorSet> descriptor_writes;
@@ -226,14 +172,9 @@ namespace aq {
         }
 
         ctx.device.updateDescriptorSets(descriptor_writes, {});
-
     }
 
-    vk::DeviceSize MaterialManager::get_buffer_offset(uint frame) {
-        return frame * nr_materials * sizeof(Material::Properties);
-    }
-
-    uint MaterialManager::get_material_index(std::shared_ptr<Material> material) {
+    ManagedMemoryIndex MaterialManager::get_material_index(std::shared_ptr<Material> material) {
         auto it = material_indices.find(material);
         if (it == material_indices.end()) return 0; // Material not found so return default material
         return it->second;
@@ -280,21 +221,10 @@ namespace aq {
         for (uint i=0; i<descriptor_sets.size(); ++i) { desc_set_layouts.push_back(desc_set_layout); }
         vk::DescriptorSetAllocateInfo mat_desc_set_alloc_info(desc_pool, descriptor_sets.size(), desc_set_layouts.data());
 
-        // auto[atds_res, desc_sets] = ctx.device.allocateDescriptorSets(mat_desc_set_alloc_info);
         vk::Result atds_res = ctx.device.allocateDescriptorSets(&mat_desc_set_alloc_info, descriptor_sets.data());
         CHECK_VK_RESULT(atds_res, "Failed to allocate descriptor sets");
 
         for (uint i=0; i<descriptor_sets.size(); ++i) {
-            // descriptor_sets[i] = desc_sets[i];
-
-            // std::array<vk::DescriptorBufferInfo, 1> buffer_infos{{
-            //     { buffer_datas[i].material_buffer.get_buffer(), 0, nr_materials * sizeof(Material::Properties) }
-            // }};
-            // vk::WriteDescriptorSet write_buff_desc_set = vk::WriteDescriptorSet()
-            //     .setDstSet(desc_sets[i])
-            //     .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-            //     .setBufferInfo(buffer_infos);
-
             std::array<vk::DescriptorImageInfo, 1> sampler_infos{{
                 {default_sampler, nullptr, vk::ImageLayout::eShaderReadOnlyOptimal}
             }};
@@ -315,7 +245,6 @@ namespace aq {
                 .setDescriptorType(vk::DescriptorType::eSampledImage)
                 .setImageInfo(image_infos);
 
-            // ctx.device.updateDescriptorSets({write_buff_desc_set, write_samp_desc_set, write_tex_desc_set}, {});
             ctx.device.updateDescriptorSets({write_samp_desc_set, write_tex_desc_set}, {});
         }
     }
@@ -324,16 +253,11 @@ namespace aq {
         ctx.device.destroyDescriptorSetLayout(desc_set_layout);
         ctx.device.destroySampler(default_sampler);
         ctx.device.destroyDescriptorPool(desc_pool);
-        // material_buffer.destroy();
-        // for (auto& buffer_data : buffer_datas) {
-        //     buffer_data.material_buffer.destroy();
-        // }
+
         material_memory.destroy();
         descriptor_sets.clear();
 
-        // material_datas.clear();
         material_indices.clear();
-        // updated_materials.clear();
 
         // Clearing textures vector will free unused textures
         textures.clear();

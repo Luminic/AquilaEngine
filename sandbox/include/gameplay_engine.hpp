@@ -20,6 +20,8 @@ protected:
     aq::DefaultCamera camera;
     CameraController camera_controller;
 
+    std::shared_ptr<aq::Mesh> triangle_mesh;
+
     bool paused = true;
 
     void init_meshes();

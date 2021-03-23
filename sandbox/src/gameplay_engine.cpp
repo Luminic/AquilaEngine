@@ -113,6 +113,10 @@ void GameplayEngine::run() {
             camera_controller.move(camera_movement);
         }
 
+        float col = std::sin(aquila_engine.get_frame_number() / 512.0f * 2*3.141592) * 0.5f + 0.5f;
+        triangle_mesh->material->properties.albedo = glm::vec3(1.0f,col,0.0f);
+        aquila_engine.get_material_manager()->update_material(triangle_mesh->material);
+
         camera.update();
         aquila_engine.update();
         aquila_engine.draw(&camera);
@@ -122,7 +126,7 @@ void GameplayEngine::run() {
 void GameplayEngine::init_meshes() {
     std::string resource_path = std::string(SANDBOX_PROJECT_PATH) + "/resources/";
 
-    std::shared_ptr<aq::Mesh> triangle_mesh = std::make_shared<aq::Mesh>();
+    triangle_mesh = std::make_shared<aq::Mesh>();
 
     triangle_mesh->vertices.resize(4);
 
@@ -147,8 +151,8 @@ void GameplayEngine::init_meshes() {
     };
 
     triangle_mesh->material = std::make_shared<aq::Material>();
-    triangle_mesh->material->textures[aq::Material::Albedo] = std::make_shared<aq::Texture>();
-    triangle_mesh->material->textures[aq::Material::Albedo]->upload_later((resource_path + "happy-tree.png").c_str());
+    // triangle_mesh->material->textures[aq::Material::Albedo] = std::make_shared<aq::Texture>();
+    // triangle_mesh->material->textures[aq::Material::Albedo]->upload_later((resource_path + "happy-tree.png").c_str());
 
 
     aq::ModelLoader model_loader(resource_path, "monkey.obj");
@@ -176,5 +180,7 @@ void GameplayEngine::init_meshes() {
     aquila_engine.upload_meshes();
     aquila_engine.upload_materials({triangle_mesh->material});
     aquila_engine.upload_materials(model_loader.get_materials());
+    aquila_engine.get_material_manager()->remove_material(triangle_mesh->material);
     aquila_engine.upload_materials(model_loader2.get_materials());
+    aquila_engine.get_material_manager()->add_material(triangle_mesh->material);
 }

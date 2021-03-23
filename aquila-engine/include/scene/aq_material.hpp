@@ -77,6 +77,7 @@ namespace aq {
         void add_material(std::shared_ptr<Material> material);
         // Returns false if material is not being managed (has not been added)
         bool update_material(std::shared_ptr<Material> material);
+        bool remove_material(std::shared_ptr<Material> material);
 
         // If the texture has not been uploaded, will upload texture from its path
         // Returns texture index
@@ -86,44 +87,24 @@ namespace aq {
         // Uploads material memory to the buffer for `safe_frame`
         void update(uint safe_frame);
 
-        // Gets the offset for the virtual buffer for `frame`
-        vk::DeviceSize get_buffer_offset(uint frame);
-        // Gets the offset for the virtual buffer for `material` on `frame`
-        // A null `material` or a material not managed by `this` will return material 0
-        uint get_material_index(std::shared_ptr<Material> material);
+        // Gets the index for `material` in the buffer
+        // An unknown material will return index 0 (error material)
+        ManagedMemoryIndex get_material_index(std::shared_ptr<Material> material);
 
         // Returns a texture if `MaterialManager` has a texture with path `path`
         // Otherwise returns null
         std::shared_ptr<Texture> get_texture(std::string path);
 
         vk::DescriptorSetLayout get_descriptor_set_layout() { return desc_set_layout; };
-        // vk::DescriptorSet get_descriptor_set(uint frame) { return buffer_datas[frame].desc_set; };
         vk::DescriptorSet get_descriptor_set(uint frame) { return descriptor_sets[frame]; };
 
         std::shared_ptr<Material> default_material;
 
     private:
-        // struct BufferData {
-        //     ResizableBuffer material_buffer;
-        //     unsigned char* p_mat_buff_mem;
-        //     vk::DescriptorSet desc_set;
-        // };
-        // std::vector<BufferData> buffer_datas;
         std::vector<vk::DescriptorSet> descriptor_sets;
         void create_descriptor_sets();
 
         MemoryManager material_memory;
-
-        // struct MaterialData {
-        //     std::shared_ptr<Material> material;
-        //     std::vector<uint> uploaded_buffers;
-        // };
-        // std::vector<MaterialData> material_datas;
-        // When materials are pushed into `materials` their index is added to `updated_materials`
-        // When `update` is called, `safe_frame` is added to the uint vector for each material in `updated_materials`
-        // Once the uint vector contains all the frames (size == `frame_overlap`) the material had been fully uploaded and is
-        // removed from the list
-        // std::list<uint> updated_materials;
         std::unordered_map<std::shared_ptr<Material>, ManagedMemoryIndex> material_indices;
 
         std::vector<std::shared_ptr<Texture>> textures;
