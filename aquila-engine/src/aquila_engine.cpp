@@ -9,12 +9,14 @@
 
 #include "scene/aq_texture.hpp"
 
+#include "editor/aq_node_hierarchy_editor.hpp"
+
 namespace aq {
 
     AquilaEngine::AquilaEngine() : render_engine(100), root_node(std::make_shared<Node>()) {
         if (render_engine.init() != aq::RenderEngine::InitializationState::Initialized)
 		    std::cerr << "Failed to initialize render engine." << std::endl;
-        }
+    }
 
     AquilaEngine::~AquilaEngine() {
         render_engine.wait_idle();
@@ -29,6 +31,12 @@ namespace aq {
 
     void AquilaEngine::update() {
         render_engine.update();
+
+        ImGui::Begin("Hierarchy", nullptr, {});
+
+        draw_tree(root_node);
+
+        ImGui::End();
     }
 
     void AquilaEngine::draw(AbstractCamera* camera) {

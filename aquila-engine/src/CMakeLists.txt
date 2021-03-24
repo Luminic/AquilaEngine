@@ -24,6 +24,8 @@ add_library(aquila-engine SHARED
 
     scene/aq_texture.cpp
     scene/aq_material.cpp
+
+    editor/aq_node_hierarchy_editor.cpp
 )
 
 target_compile_definitions(aquila-engine 
