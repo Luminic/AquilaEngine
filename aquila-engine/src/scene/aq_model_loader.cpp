@@ -47,7 +47,7 @@ namespace aq {
     }
 
     std::shared_ptr<Node> ModelLoader::process_node(aiNode* ai_node, const aiScene* ai_scene) {
-        std::shared_ptr<Node> aq_node = std::make_shared<Node>();
+        std::shared_ptr<Node> aq_node = std::make_shared<Node>(ai_node->mName.C_Str());
 
         aq_node->org_transform = ai_to_glm(ai_node->mTransformation);
 
@@ -92,7 +92,7 @@ namespace aq {
     }
 
     std::shared_ptr<Mesh> ModelLoader::process_mesh(struct aiMesh* ai_mesh, const struct aiScene* ai_scene) {
-        std::shared_ptr<Mesh> aq_mesh = std::make_shared<Mesh>();
+        std::shared_ptr<Mesh> aq_mesh = std::make_shared<Mesh>(ai_mesh->mName.C_Str());
 
         // Load vertices
         aq_mesh->vertices.reserve(ai_mesh->mNumVertices);
@@ -121,10 +121,11 @@ namespace aq {
         if (aq_materials[ai_mesh->mMaterialIndex]) {
             aq_mesh->material = aq_materials[ai_mesh->mMaterialIndex];
         } else {
-            aq_mesh->material = std::make_shared<Material>();
+            aiMaterial* ai_material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
+
+            aq_mesh->material = std::make_shared<Material>(ai_material->GetName().C_Str());
             aq_materials[ai_mesh->mMaterialIndex] = aq_mesh->material;
 
-            aiMaterial* ai_material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
             aiColor3D color;
             ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, color);
             aq_mesh->material->properties.albedo = glm::vec4(ai_to_glm(color), 0.0f);

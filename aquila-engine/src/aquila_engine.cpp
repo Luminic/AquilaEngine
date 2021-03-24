@@ -13,12 +13,16 @@
 
 namespace aq {
 
-    AquilaEngine::AquilaEngine() : render_engine(100), root_node(std::make_shared<Node>()) {
+    AquilaEngine::AquilaEngine() : render_engine(100), root_node(std::make_shared<Node>("Aquila Root")) {
         if (render_engine.init() != aq::RenderEngine::InitializationState::Initialized)
 		    std::cerr << "Failed to initialize render engine." << std::endl;
+
+        nhe = new NodeHierarchyEditor(&render_engine.material_manager);
     }
 
     AquilaEngine::~AquilaEngine() {
+        delete nhe;
+
         render_engine.wait_idle();
 
         for (auto& node : root_node) {
@@ -34,7 +38,7 @@ namespace aq {
 
         ImGui::Begin("Hierarchy", nullptr, {});
 
-        draw_tree(root_node);
+        nhe->draw_tree(root_node);
 
         ImGui::End();
     }

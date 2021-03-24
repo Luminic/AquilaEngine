@@ -126,7 +126,7 @@ void GameplayEngine::run() {
 void GameplayEngine::init_meshes() {
     std::string resource_path = std::string(SANDBOX_PROJECT_PATH) + "/resources/";
 
-    triangle_mesh = std::make_shared<aq::Mesh>();
+    triangle_mesh = std::make_shared<aq::Mesh>("triangles");
 
     triangle_mesh->vertices.resize(4);
 
@@ -150,7 +150,7 @@ void GameplayEngine::init_meshes() {
         3, 1, 2
     };
 
-    triangle_mesh->material = std::make_shared<aq::Material>();
+    triangle_mesh->material = std::make_shared<aq::Material>("test");
     // triangle_mesh->material->textures[aq::Material::Albedo] = std::make_shared<aq::Texture>();
     // triangle_mesh->material->textures[aq::Material::Albedo]->upload_later((resource_path + "happy-tree.png").c_str());
 
@@ -172,7 +172,7 @@ void GameplayEngine::init_meshes() {
     aq::ModelLoader model_loader2(resource_path, "test_scene.glb");
     aquila_engine.root_node->add_node(model_loader2.get_root_node());
 
-    std::shared_ptr<aq::Node> rect = std::make_shared<aq::Node>();
+    std::shared_ptr<aq::Node> rect = std::make_shared<aq::Node>("test");
     rect->position.y = -3.0f;
     rect->add_mesh(triangle_mesh);
     aquila_engine.root_node->add_node(rect);

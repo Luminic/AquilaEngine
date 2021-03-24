@@ -1,10 +1,11 @@
 #ifndef SCENE_AQUILA_MATERIAL_HPP
 #define SCENE_AQUILA_MATERIAL_HPP
 
+#include <memory>
+#include <string>
 #include <vector>
 #include <list>
 #include <unordered_map>
-#include <memory>
 #include <utility>
 
 #include <glm/glm.hpp>
@@ -21,6 +22,7 @@ namespace aq {
     class Material {
     public:
         Material();
+        Material(const std::string& name);
         ~Material();
 
         struct Properties {
@@ -42,7 +44,6 @@ namespace aq {
         };
         Properties properties;
 
-        std::array<std::shared_ptr<Texture>, 5> textures{};
         enum TextureType {
             Albedo = 0,
             Roughness = 1,
@@ -50,6 +51,10 @@ namespace aq {
             AmbientOcclusion = 3,
             Normal = 4
         };
+        std::array<std::shared_ptr<Texture>, 5> textures{};
+
+        // `name` should never be used as an ID; it's just an easy way for users to identify materials
+        std::string name;
     };
 
     class MaterialManager {

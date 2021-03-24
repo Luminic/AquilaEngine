@@ -4,12 +4,11 @@
 
 namespace aq {
 
-    Node::Node(
-        glm::vec3 position, 
-        glm::quat rotation, 
-        glm::vec3 scale,
-        glm::mat4 org_transform
-    ) : position(position), rotation(rotation), scale(scale), org_transform(org_transform) {}
+    Node::Node(glm::vec3 position, glm::quat rotation, glm::vec3 scale,glm::mat4 org_transform)
+        : position(position), rotation(rotation), scale(scale), org_transform(org_transform) {}
+
+    Node::Node(const std::string& name, glm::vec3 position, glm::quat rotation, glm::vec3 scale,glm::mat4 org_transform)
+        : name(name), position(position), rotation(rotation), scale(scale), org_transform(org_transform) {}
 
     Node::~Node() {}
 

@@ -5,8 +5,9 @@
 namespace aq {
 
     Mesh::Mesh() {}
-
-    Mesh::Mesh(const std::vector<Vertex>& vertices) : vertices(vertices) {}
+    Mesh::Mesh(const std::string& name) : name(name) {}
+    Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<Index>& indices) : vertices(vertices), indices(indices) {}
+    Mesh::Mesh(const std::string& name, const std::vector<Vertex>& vertices, const std::vector<Index>& indices) : name(name), vertices(vertices), indices(indices) {}
 
     Mesh::~Mesh() {
         free(); // Just in case

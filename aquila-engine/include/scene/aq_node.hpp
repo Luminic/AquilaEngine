@@ -2,6 +2,7 @@
 #define SCENE_AQUILA_NODE_HPP
 
 #include <memory>
+#include <string>
 #include <vector>
 #include <utility>
 
@@ -18,6 +19,13 @@ namespace aq {
         class HierarchyIterator;
 
         Node(
+            glm::vec3 position=glm::vec3(0.0f), 
+            glm::quat rotation=glm::quat(1.0f,0.0f,0.0f,0.0f), 
+            glm::vec3 scale=glm::vec3(1.0f),
+            glm::mat4 org_transform=glm::mat4(1.0f)
+        );
+        Node(
+            const std::string& name,
             glm::vec3 position=glm::vec3(0.0f), 
             glm::quat rotation=glm::quat(1.0f,0.0f,0.0f,0.0f), 
             glm::vec3 scale=glm::vec3(1.0f),
@@ -40,6 +48,9 @@ namespace aq {
         glm::vec3 position;
         glm::quat rotation;
         glm::vec3 scale;
+
+        // `name` should never be used as an ID; it's just an easy way for users to identify nodes
+        std::string name;
     
     protected:
         std::vector<std::shared_ptr<Mesh>> child_meshes;

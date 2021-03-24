@@ -48,6 +48,8 @@ namespace aq {
 
     private:
         RenderEngine render_engine;
+
+        class NodeHierarchyEditor* nhe;
     };
 
 }

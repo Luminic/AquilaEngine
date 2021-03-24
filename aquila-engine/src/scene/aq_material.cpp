@@ -9,13 +9,14 @@
 namespace aq {
 
     Material::Material() {}
+    Material::Material(const std::string& name) : name(name) {}
 
     Material::~Material() {}
 
 
     MaterialManager::MaterialManager() {
         // Default (error) material
-        default_material = std::make_shared<Material>();
+        default_material = std::make_shared<Material>("Error Material");
         default_material->properties.albedo = glm::vec4(1.0f, 0.0f, 1.0f, 0.0f);
     }
 
