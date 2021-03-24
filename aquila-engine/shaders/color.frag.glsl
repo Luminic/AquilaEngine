@@ -1,8 +1,6 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 
-#include "lighting.glsl"
-
 layout (location = 0) out vec4 o_color;
 
 layout (location = 0) in vec4 v_position;
@@ -46,24 +44,7 @@ layout (push_constant) uniform VertConstants {
 	layout(offset=64) uint material_index;
 } push_constants;
 
-vec3 BRDF_Cook_Torrance2(vec3 n, vec3 v, vec3 l, float roughness, float metalness, vec3 albedo) {
-    vec3 h = normalize(v + l);
-    vec3 F0 = 0.04f.xxx;
-
-	vec3 kd = (1.0f.xxx - fresnel(pos_dot(h,l), F0)) * (1.0f.xxx - fresnel(pos_dot(h,v), F0));
-	kd *= 1.0f - metalness;
-    vec3 diffuse = albedo;
-
-    F0 = mix(F0, albedo, metalness);
-
-    vec3 ks = fresnel(pos_dot(h, l), F0);
-    float specular = geometry(n, v, l, roughness) * distribution(n, h, roughness)
-                     / max(4 * pos_dot(n, v) * pos_dot(n, l), 0.001);
-
-    return ks*specular + kd*diffuse;
-	// return ks*specular;
-	// return kd*diffuse;
-}
+#include "lighting.glsl"
 
 vec3 lighting() {
 	MaterialProperties mat_props = material_properties_buffer.material_properties[push_constants.material_index];
@@ -91,7 +72,7 @@ vec3 lighting() {
 	vec3 light_direction = -normalize(vec3(-0.3f, 1.0f, 0.3f));
 	vec3 view = normalize(camera.position.xyz - v_position.xyz);
 
-	vec3 BRDF = BRDF_Cook_Torrance2(normal, view, light_direction, roughness, metalness, albedo);
+	vec3 BRDF = BRDF_Cook_Torrance(normal, view, light_direction, roughness, metalness, albedo);
 	return BRDF * vec3(1.0f,1.0f,1.0f) * max(dot(normal, light_direction), 0.0f);
 }
 

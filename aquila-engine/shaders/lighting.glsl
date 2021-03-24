@@ -36,18 +36,17 @@ vec3 fresnel(float cos_theta, vec3 F0) {
 // and "Devsh's PBR discussion" https://docs.google.com/document/d/1ZLT1-fIek2JkErN9ZPByeac02nWipMbO89oCW2jxzXo/edit
 vec3 BRDF_Cook_Torrance(vec3 n, vec3 v, vec3 l, float roughness, float metalness, vec3 albedo) {
     vec3 h = normalize(v + l);
-    float n_dot_v = pos_dot(n, v);
-    float n_dot_l = pos_dot(n, l);
-
     vec3 F0 = 0.04f.xxx;
+
+	vec3 kd = (1.0f.xxx - fresnel(pos_dot(h,l), F0)) * (1.0f.xxx - fresnel(pos_dot(h,v), F0));
+	kd *= 1.0f - metalness;
+    vec3 diffuse = albedo;
+
     F0 = mix(F0, albedo, metalness);
 
     vec3 ks = fresnel(pos_dot(h, l), F0);
     float specular = geometry(n, v, l, roughness) * distribution(n, h, roughness)
-                     / max(4 * n_dot_v * n_dot_l, 0.001);
-    
-    vec3 kd = 1.0f.xxx;//(1.0f.xxx - fresnel(n_dot_l, F0)) * (1.0f.xxx - fresnel(n_dot_v, F0));
-    vec3 diffuse = albedo;
+                     / max(4 * pos_dot(n, v) * pos_dot(n, l), 0.001);
 
-    return ks*specular;// + kd*diffuse;
+    return ks*specular + kd*diffuse;
 }
