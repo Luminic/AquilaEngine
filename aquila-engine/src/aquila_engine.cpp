@@ -17,7 +17,7 @@ namespace aq {
         if (render_engine.init() != aq::RenderEngine::InitializationState::Initialized)
 		    std::cerr << "Failed to initialize render engine." << std::endl;
 
-        nhe = new NodeHierarchyEditor(&render_engine.material_manager);
+        nhe = new NodeHierarchyEditor(&render_engine.material_manager, &render_engine);
     }
 
     AquilaEngine::~AquilaEngine() {

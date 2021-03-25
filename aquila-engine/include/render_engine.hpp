@@ -77,6 +77,10 @@ namespace aq {
     
     private:
         uint32_t max_nr_textures;
+
+        // Ensure meshes being rendered are alive until the rendering stops
+        std::array<std::vector<std::shared_ptr<Mesh>>, FRAME_OVERLAP> meshes_in_render;
+
         DeletionQueue deletion_queue;
     };
 

@@ -36,6 +36,11 @@ namespace aq {
         InitializationState get_initialization_state();
         SDL_Window* get_window() { return window; }
 
+        vma::Allocator* get_allocator() { return &allocator; }
+
+        // Usually used for `immediate_submit`
+        vk_util::UploadContext get_default_upload_context(); 
+
     protected:
         InitializationState initialization_state{ InitializationState::Uninitialized };
 
@@ -111,9 +116,6 @@ namespace aq {
 
         vk::CommandPool upload_command_pool;
         vk::Fence upload_fence; // Initialized in `init_vulkan_resources` (needed for `init_render_resources`)
-
-        // Usually used for `immediate_submit`
-        vk_util::UploadContext get_default_upload_context(); 
 
         bool init_vulkan_resources();
         void cleanup_vulkan_resources();

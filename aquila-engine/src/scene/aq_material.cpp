@@ -121,6 +121,7 @@ namespace aq {
     uint MaterialManager::add_texture(std::shared_ptr<Texture> texture) {
         auto tex_it = texture_indices.find(texture->get_path());
         if (tex_it != texture_indices.end()) { // Texture was already added
+            texture->clear_cpu_data();
             return tex_it->second; 
         }
 

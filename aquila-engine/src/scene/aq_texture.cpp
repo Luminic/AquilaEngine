@@ -94,6 +94,10 @@ namespace aq {
         return true;
     }
 
+    void Texture::clear_cpu_data() {
+        data.clear();
+    }
+
     void Texture::destroy() {
         image.destroy();
         if (device) {

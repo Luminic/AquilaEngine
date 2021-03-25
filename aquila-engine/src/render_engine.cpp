@@ -40,6 +40,7 @@ namespace aq {
         ImGui::Render();
 
         uint64_t timeout{ 1'000'000'000 };
+        uint frame_index = frame_number % FRAME_OVERLAP;
         FrameObjects& fo = get_frame_objects(frame_number);
         FrameData& fd = get_frame_data(frame_number);
 
@@ -47,8 +48,11 @@ namespace aq {
         CHECK_VK_RESULT( device.waitForFences(1, &fo.render_fence, VK_TRUE, timeout), "Failed to wait for render fence");
         CHECK_VK_RESULT( device.resetFences(1, &fo.render_fence), "Failed to reset render fence");
 
+        // Rendering is finished so the shared pointers can be let go
+        meshes_in_render[frame_index].clear();
+
         // Update the material manager now that the frame has finished rendering
-        material_manager.update(frame_number % FRAME_OVERLAP);
+        material_manager.update(frame_index);
 
         // Get next swap chain image
         auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, fo.present_semaphore, {});
@@ -126,6 +130,7 @@ namespace aq {
     }
 
     void RenderEngine::cleanup_render_resources() {
+        meshes_in_render.fill({}); // All frames have finished rendering
         material_manager.destroy();
         deletion_queue.flush();
     }
@@ -380,6 +385,9 @@ namespace aq {
                     fo.main_command_buffer.bindIndexBuffer(mesh->combined_iv_buffer.buffer, 0, index_vk_type);
 
                     fo.main_command_buffer.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
+
+                    // Make sure mesh stays alive while this frame is being rendered
+                    meshes_in_render[frame_index].push_back(mesh);
                 }
             }
         }

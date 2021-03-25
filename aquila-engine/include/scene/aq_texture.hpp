@@ -24,6 +24,7 @@ namespace aq {
         // Use texture path
         bool upload_from_file(std::string path, vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
         bool upload_from_data(void* data, int width, int height, vma::Allocator* allocator, const vk_util::UploadContext& upload_context);
+        void clear_cpu_data();
         void destroy(); // Only works if the object was allocated/uploaded with a member function
 
         bool is_uploaded() { return bool(image.image); };

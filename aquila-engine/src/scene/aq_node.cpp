@@ -40,9 +40,9 @@ namespace aq {
 
     glm::mat4 Node::get_model_matrix() {
         glm::mat4 model = org_transform;
-        model = glm::scale(model, scale);
-        model = glm::mat4_cast(rotation) * model;
         model = glm::translate(model, position);
+        model *= glm::mat4_cast(rotation);
+        model = glm::scale(model, scale);
         return model;
     }
 
