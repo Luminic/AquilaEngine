@@ -12,12 +12,11 @@
 
 #include "util/vk_types.hpp"
 #include "util/vk_resizable_buffer.hpp"
+#include "util/vk_descriptor_set_builder.hpp"
 #include "util/aq_memory_manager.hpp"
 #include "scene/aq_texture.hpp"
 
 namespace aq {
-
-    class MaterialManager;
 
     class Material {
     public:
@@ -61,19 +60,21 @@ namespace aq {
     public:
         MaterialManager();
 
-        // `nr_materials` is the number of materials `MaterialManager` should be able
-        // to handle
-        //
-        // `frame_overlap` is the number of copies MaterialManager will have of the material
-        // data so material data can be updated without witing for the GPU to finish
-        // rendering all frames
-        bool init(
-            size_t nr_materials, 
-            uint max_nr_textures,
-            uint frame_overlap, 
-            vma::Allocator* allocator, 
+        // Initialize the `MaterialManager`
+        // Call `descriptor_sets_created(...)` after `per_frame_descriptor_set_builder.build()`
+        void init(
+            uint frame_overlap,
+            size_t texture_capacity, // texture capacity is fixed
+            size_t initial_material_capacity, // material capacity can grow as needed
+            DescriptorSetBuilder& per_frame_descriptor_set_builder, // should have multiplicity of `frame_overlap`
+            vma::Allocator* allocator,
             vk_util::UploadContext upload_context
         );
+
+        // Call after `per_frame_descriptor_set_builder.build()` where `per_frame_descriptor_set_builder` is the same one from `init`
+        // Will update the descriptor sets
+        // `descriptor_sets` should have size `frame_overlap` 
+        void descriptor_sets_created(const std::vector<vk::DescriptorSet>& descriptor_sets);
 
         // Destroy material buffer, descriptor layout, and descriptor sets
         void destroy();
@@ -100,34 +101,29 @@ namespace aq {
         // Otherwise returns null
         std::shared_ptr<Texture> get_texture(std::string path);
 
-        vk::DescriptorSetLayout get_descriptor_set_layout() { return desc_set_layout; };
-        vk::DescriptorSet get_descriptor_set(uint frame) { return descriptor_sets[frame]; };
-
         std::shared_ptr<Material> default_material;
 
     private:
-        std::vector<vk::DescriptorSet> descriptor_sets;
-        void create_descriptor_sets();
+        // std::vector<vk::DescriptorSet> descriptor_sets;
+        void create_descriptor_writes();
 
         MemoryManager material_memory;
         std::unordered_map<std::shared_ptr<Material>, ManagedMemoryIndex> material_indices;
 
         std::vector<std::shared_ptr<Texture>> textures;
-        // Similar to `updated_materials` but the vector of frames the texture descriptor has been uploaded to is stored directly in the list
-        std::list<std::pair<uint, std::vector<uint>>> added_textures;
-        // Texture path to texture index
-        std::unordered_map<std::string, uint> texture_indices;
-
-        size_t nr_materials;
-        uint max_nr_textures;
-
-        vma::Allocator* allocator;
-        vk_util::UploadContext ctx;
+        std::list<std::pair<uint, std::vector<uint>>> added_textures; // the vector of frames the texture descriptor has been updated
+        std::unordered_map<std::string, uint> texture_indices; // Texture path to texture index
 
         vk::Sampler default_sampler;
 
-        vk::DescriptorPool desc_pool; // Separate pool for material data
-        vk::DescriptorSetLayout desc_set_layout;
+        uint frame_overlap;
+        size_t texture_capacity;
+        size_t initial_material_capacity;
+
+        std::vector<vk::DescriptorSet> descriptor_sets;
+
+        vma::Allocator* allocator;
+        vk_util::UploadContext ctx;
     };
 
 }

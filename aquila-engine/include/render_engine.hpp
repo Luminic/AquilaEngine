@@ -8,6 +8,7 @@
 
 #include "init_engine.hpp"
 #include "util/vk_types.hpp"
+#include "util/vk_descriptor_set_builder.hpp"
 #include "scene/aq_camera.hpp"
 #include "scene/aq_mesh.hpp"
 #include "scene/aq_node.hpp"
@@ -73,9 +74,13 @@ namespace aq {
         void draw_objects(AbstractCamera* camera, std::shared_ptr<Node>& object_hierarchy);
         uint64_t frame_number{0};
 
+    private:
         friend class AquilaEngine;
     
-    private:
+        DescriptorSetAllocator descriptor_set_allocator;
+        vk::DescriptorSetLayout per_frame_descriptor_set_layout;
+        std::vector<vk::DescriptorSet> per_frame_descriptor_sets;
+
         uint32_t max_nr_textures;
 
         // Ensure meshes being rendered are alive until the rendering stops

@@ -12,7 +12,9 @@ add_library(aquila-engine SHARED
     util/vk_initializers.cpp
     util/vk_types.cpp
     util/vk_utility.cpp
+    util/vk_shaders.cpp
     util/vk_resizable_buffer.cpp
+    util/vk_descriptor_set_builder.cpp
     util/aq_memory_manager.cpp
     util/pipeline_builder.cpp
 

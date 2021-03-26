@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "util/vk_utility.hpp"
+#include "util/vk_shaders.hpp"
 
 namespace aq {
 
@@ -20,13 +21,24 @@ namespace aq {
         default_material->properties.albedo = glm::vec4(1.0f, 0.0f, 1.0f, 0.0f);
     }
 
-    bool MaterialManager::init(size_t nr_materials, uint max_nr_textures, uint frame_overlap, vma::Allocator* allocator, vk_util::UploadContext upload_context) {
-        this->nr_materials = nr_materials;
-        this->max_nr_textures = max_nr_textures;
+    void MaterialManager::init(
+        uint frame_overlap,
+        size_t texture_capacity,
+        size_t initial_material_capacity,
+        DescriptorSetBuilder& per_frame_descriptor_set_builder,
+        vma::Allocator* allocator,
+        vk_util::UploadContext upload_context
+    ) {
+        this->frame_overlap = frame_overlap;
+        this->texture_capacity = texture_capacity;
+        this->initial_material_capacity = initial_material_capacity;
         this->allocator = allocator;
         this->ctx = upload_context;
 
-        descriptor_sets.resize(frame_overlap);
+        per_frame_descriptor_set_builder
+            .add_binding({(int) PerFrameBufferBindings::MaterialPropertiesBuffer, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eFragment})
+            .add_binding({(int) PerFrameBufferBindings::DefaultSampler, vk::DescriptorType::eSampler, 1, vk::ShaderStageFlagBits::eFragment})
+            .add_binding({(int) PerFrameBufferBindings::Textures, vk::DescriptorType::eSampledImage, (uint32_t) texture_capacity, vk::ShaderStageFlagBits::eFragment});
 
         // Create Sampler for textures
         vk::SamplerCreateInfo sampler_create_info = vk::SamplerCreateInfo()
@@ -41,35 +53,40 @@ namespace aq {
 
         vk::Result cs_result;
         std::tie(cs_result, default_sampler) = ctx.device.createSampler(sampler_create_info);
-        CHECK_VK_RESULT_R(cs_result, false, "Failed to create sampler");
+        CHECK_VK_RESULT(cs_result, "Failed to create sampler");
 
         // Placeholder texture
         std::string placeholder_texture_path = std::string(AQUILA_ENGINE_PATH) + "/resources/missing_texture.png";
         textures.push_back(std::make_shared<Texture>());
         assert(textures.size() == 1); // Error texture must be the first texture
-        if (!textures[0]->upload_from_file(placeholder_texture_path, allocator, ctx)) return false;
+        assert(textures[0]->upload_from_file(placeholder_texture_path, allocator, ctx));
+    }
+
+    void MaterialManager::descriptor_sets_created(const std::vector<vk::DescriptorSet>& descriptor_sets) {
+        this->descriptor_sets = descriptor_sets;
+
+        create_descriptor_writes();
 
         // Init material buffers
 
-        create_descriptor_sets();
-
         std::vector<vk::WriteDescriptorSet> write_buff_desc_sets;
-        for (auto& desc_set : descriptor_sets) {
-            write_buff_desc_sets.push_back(vk::WriteDescriptorSet().setDstSet(desc_set));
+        for (auto& descriptor_set : descriptor_sets) {
+            write_buff_desc_sets.push_back(vk::WriteDescriptorSet()
+                .setDstSet(descriptor_set)
+                .setDstBinding((int) PerFrameBufferBindings::MaterialPropertiesBuffer)
+            );
         }
 
         material_memory.init(
             frame_overlap,
             sizeof(Material::Properties),
-            50,
+            initial_material_capacity,
             write_buff_desc_sets.data(),
             allocator,
             ctx
         );
 
         add_material(default_material);
-
-        return true;
     }
 
     void MaterialManager::add_material(std::shared_ptr<Material> material) {
@@ -157,7 +174,7 @@ namespace aq {
 
                 vk::WriteDescriptorSet write_tex_desc_set = vk::WriteDescriptorSet()
                     .setDstSet(descriptor_sets[safe_frame])
-                    .setDstBinding(2)
+                    .setDstBinding((int) PerFrameBufferBindings::Textures)
                     .setDstArrayElement(it2->first)
                     .setDescriptorType(vk::DescriptorType::eSampledImage)
                     .setDescriptorCount(1)
@@ -166,7 +183,7 @@ namespace aq {
                 descriptor_writes.push_back(write_tex_desc_set);
             }
 
-            if (it2->second.size() >= descriptor_sets.size()) {
+            if (it2->second.size() >= frame_overlap) {
                 it2 = added_textures.erase(it2);
             } else {
                 ++it2;
@@ -189,61 +206,25 @@ namespace aq {
         return {};
     }
 
-    void MaterialManager::create_descriptor_sets() {
-        // Descriptor pool
-
-        std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes{{
-            {vk::DescriptorType::eStorageBuffer, (uint32_t) descriptor_sets.size()},
-            {vk::DescriptorType::eSampler, (uint32_t) descriptor_sets.size()},
-            {vk::DescriptorType::eSampledImage, uint32_t(max_nr_textures * descriptor_sets.size())},
-        }};
-        vk::DescriptorPoolCreateInfo desc_pool_create_info({}, (max_nr_textures + 2) * descriptor_sets.size(), descriptor_pool_sizes);
-
-        vk::Result cdp_result;
-        std::tie(cdp_result, desc_pool) = ctx.device.createDescriptorPool(desc_pool_create_info);
-        CHECK_VK_RESULT(cdp_result, "Failed to create descriptor pool");
-
-        // Descriptor set layout
-
-        std::array<vk::DescriptorSetLayoutBinding, 3> bindings{{
-            { 0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eFragment },
-            { 1, vk::DescriptorType::eSampler, 1, vk::ShaderStageFlagBits::eFragment },
-            { 2, vk::DescriptorType::eSampledImage, max_nr_textures, vk::ShaderStageFlagBits::eFragment }
-        }};
-        vk::DescriptorSetLayoutCreateInfo desc_set_create_info({}, bindings);
-
-        vk::Result ctds_res;
-        std::tie(ctds_res, desc_set_layout) = ctx.device.createDescriptorSetLayout(desc_set_create_info);
-        CHECK_VK_RESULT(ctds_res, "Failed to create texture set layout");
-
-        // Descriptor sets
-
-        std::vector<vk::DescriptorSetLayout> desc_set_layouts;
-        desc_set_layouts.reserve(descriptor_sets.size());
-        for (uint i=0; i<descriptor_sets.size(); ++i) { desc_set_layouts.push_back(desc_set_layout); }
-        vk::DescriptorSetAllocateInfo mat_desc_set_alloc_info(desc_pool, descriptor_sets.size(), desc_set_layouts.data());
-
-        vk::Result atds_res = ctx.device.allocateDescriptorSets(&mat_desc_set_alloc_info, descriptor_sets.data());
-        CHECK_VK_RESULT(atds_res, "Failed to allocate descriptor sets");
-
-        for (uint i=0; i<descriptor_sets.size(); ++i) {
+    void MaterialManager::create_descriptor_writes() {
+        for (uint i=0; i<frame_overlap; ++i) {
             std::array<vk::DescriptorImageInfo, 1> sampler_infos{{
                 {default_sampler, nullptr, vk::ImageLayout::eShaderReadOnlyOptimal}
             }};
             vk::WriteDescriptorSet write_samp_desc_set = vk::WriteDescriptorSet()
                 .setDstSet(descriptor_sets[i])
-                .setDstBinding(1)
+                .setDstBinding((int) PerFrameBufferBindings::DefaultSampler)
                 .setDescriptorType(vk::DescriptorType::eSampler)
                 .setImageInfo(sampler_infos);
 
             std::vector<vk::DescriptorImageInfo> image_infos;
-            image_infos.reserve(max_nr_textures);
-            for (size_t i=0; i<max_nr_textures; ++i)
+            image_infos.reserve(texture_capacity);
+            for (size_t i=0; i<texture_capacity; ++i)
                 image_infos.push_back(textures[0]->get_image_info());
 
             vk::WriteDescriptorSet write_tex_desc_set = vk::WriteDescriptorSet()
                 .setDstSet(descriptor_sets[i])
-                .setDstBinding(2)
+                .setDstBinding((int) PerFrameBufferBindings::Textures)
                 .setDescriptorType(vk::DescriptorType::eSampledImage)
                 .setImageInfo(image_infos);
 
@@ -252,13 +233,12 @@ namespace aq {
     }
 
     void MaterialManager::destroy() {
-        ctx.device.destroyDescriptorSetLayout(desc_set_layout);
         ctx.device.destroySampler(default_sampler);
-        ctx.device.destroyDescriptorPool(desc_pool);
 
         material_memory.destroy();
         descriptor_sets.clear();
 
+        // Clearing `material_indices` will also free unused materials
         material_indices.clear();
 
         // Clearing textures vector will free unused textures

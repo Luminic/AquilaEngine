@@ -14,6 +14,7 @@
 
 #include "util/pipeline_builder.hpp"
 #include "util/vk_utility.hpp"
+#include "util/vk_shaders.hpp"
 
 namespace aq {
 
@@ -119,7 +120,19 @@ namespace aq {
     }
 
     bool RenderEngine::init_render_resources() {
-        if (!material_manager.init(100, max_nr_textures, FRAME_OVERLAP, &allocator, get_default_upload_context())) return false;
+        descriptor_set_allocator.init(device);
+        DescriptorSetBuilder per_frame_descriptor_set_builder(&descriptor_set_allocator, device, FRAME_OVERLAP);
+        material_manager.init(FRAME_OVERLAP, max_nr_textures, 50, per_frame_descriptor_set_builder, &allocator, get_default_upload_context());
+        
+        per_frame_descriptor_sets = per_frame_descriptor_set_builder.build();
+        per_frame_descriptor_set_layout = per_frame_descriptor_set_builder.get_layout();
+        deletion_queue.push_function([this](){
+            descriptor_set_allocator.destroy();
+            device.destroyDescriptorSetLayout(per_frame_descriptor_set_layout);
+        });
+
+        material_manager.descriptor_sets_created(per_frame_descriptor_sets);
+
         if (!init_data()) return false;
         if (!init_descriptors()) return false;
         if (!init_pipelines()) return false;
@@ -138,7 +151,7 @@ namespace aq {
     bool RenderEngine::init_pipelines() {
         std::string proj_path(AQUILA_ENGINE_PATH);
 
-        vk::UniqueShaderModule triangle_vert_shader = vk_init::load_shader_module_unique(
+        vk::UniqueShaderModule triangle_vert_shader = load_shader_module_unique(
             (proj_path + "/shaders/color.vert.spv").c_str(), device
         );
         if (!triangle_vert_shader) {
@@ -146,7 +159,7 @@ namespace aq {
             return false;
         }
 
-        vk::UniqueShaderModule triangle_frag_shader = vk_init::load_shader_module_unique(
+        vk::UniqueShaderModule triangle_frag_shader = load_shader_module_unique(
             (proj_path + "/shaders/color.frag.spv").c_str(), device
         );
         if (!triangle_frag_shader) {
@@ -163,7 +176,7 @@ namespace aq {
             .setDataSize(sizeof(max_nr_textures))
             .setPData(&max_nr_textures);
 
-        std::array<vk::DescriptorSetLayout, 2> set_layouts = {{global_set_layout, material_manager.get_descriptor_set_layout()}};
+        std::array<vk::DescriptorSetLayout, 2> set_layouts = {{global_set_layout, per_frame_descriptor_set_layout}};
 
         std::array<vk::PushConstantRange, 2> push_constant_ranges = {
             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4)),
@@ -369,7 +382,7 @@ namespace aq {
         memcpy(p_cam_buff_mem + camera_data_gpu_size*frame_index, &camera_data, sizeof(GPUCameraData));
 
         fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 0, {fd.global_descriptor}, {});
-        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {material_manager.get_descriptor_set(frame_index)}, {});
+        fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {per_frame_descriptor_sets[frame_index]}, {});
 
         PushConstants constants;
         
