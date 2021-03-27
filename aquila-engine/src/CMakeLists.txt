@@ -15,12 +15,14 @@ add_library(aquila-engine SHARED
     util/vk_shaders.cpp
     util/vk_resizable_buffer.cpp
     util/vk_descriptor_set_builder.cpp
-    util/aq_memory_manager.cpp
+    util/vk_memory_manager_retained.cpp
+    util/vk_memory_manager_immediate.cpp
     util/pipeline_builder.cpp
 
     scene/aq_vertex.cpp
     scene/aq_mesh.cpp
     scene/aq_node.cpp
+    scene/aq_light.cpp
     scene/aq_model_loader.cpp
     scene/aq_camera.cpp
 

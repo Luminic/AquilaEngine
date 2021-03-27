@@ -1,12 +1,12 @@
-#include "util/aq_memory_manager.hpp"
+#include "util/vk_memory_manager_retained.hpp"
 
 #include <iostream>
 
 namespace aq {
 
-    MemoryManager::MemoryManager() {}
+    MemoryManagerRetained::MemoryManagerRetained() {}
 
-    bool MemoryManager::init(
+    bool MemoryManagerRetained::init(
         uint frame_overlap,
         size_t object_size,
         size_t reserve_size,
@@ -43,7 +43,7 @@ namespace aq {
         return true;
     }
 
-    void MemoryManager::destroy() {
+    void MemoryManagerRetained::destroy() {
         for (auto& buffer : buffers) {
             buffer.buffer.destroy();
         }
@@ -51,7 +51,7 @@ namespace aq {
         free_memory.clear();
     }
 
-    ManagedMemoryIndex MemoryManager::add_object(void* object) {
+    ManagedMemoryIndex MemoryManagerRetained::add_object(void* object) {
         ManagedMemoryIndex object_index;
         if (!free_memory.empty()) {
             object_index = free_memory.front();
@@ -69,7 +69,7 @@ namespace aq {
         return object_index;
     }
 
-    void MemoryManager::update_object(ManagedMemoryIndex index, void* object) {
+    void MemoryManagerRetained::update_object(ManagedMemoryIndex index, void* object) {
         std::shared_ptr<std::byte[]> memory(new std::byte[object_size]);
         memcpy(memory.get(), object, object_size);
         for (auto& buffer : buffers) {
@@ -77,7 +77,7 @@ namespace aq {
         }
     }
 
-    void MemoryManager::remove_object(ManagedMemoryIndex index) {
+    void MemoryManagerRetained::remove_object(ManagedMemoryIndex index) {
         // Make sure `index` isn't already in `free_memory`
         if (std::find(free_memory.begin(), free_memory.end(), index) == free_memory.end()) {
             free_memory.push_back(index);
@@ -88,7 +88,7 @@ namespace aq {
         }
     }
 
-    void MemoryManager::update(uint safe_frame) {
+    void MemoryManagerRetained::update(uint safe_frame) {
         auto& buffer = buffers[safe_frame];
         for (auto& action : buffer.update_queue) {
             switch (action.type) {

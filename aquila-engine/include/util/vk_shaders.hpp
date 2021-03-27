@@ -9,7 +9,8 @@ namespace aq {
     enum class PerFrameBufferBindings {
         MaterialPropertiesBuffer = 0,
         DefaultSampler = 1,
-        Textures = 2
+        Textures = 2,
+        LightPropertiesBuffer = 3
     };
 
     /*

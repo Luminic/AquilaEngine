@@ -39,6 +39,9 @@ namespace aq {
         virtual void add_mesh(std::shared_ptr<Mesh> mesh);
         virtual void remove_mesh(Mesh* mesh);
 
+        // Called once per instance per frame of the node in the node tree before rendering
+        virtual void hierarchical_update(uint64_t frame_number, const glm::mat4& parent_transform) {}
+
         virtual const std::vector<std::shared_ptr<Mesh>>& get_child_meshes() {return child_meshes;}
         virtual const std::vector<std::shared_ptr<Node>>& get_child_nodes() {return child_nodes;}
 
@@ -56,6 +59,11 @@ namespace aq {
         std::vector<std::shared_ptr<Mesh>> child_meshes;
         std::vector<std::shared_ptr<Node>> child_nodes;
         
+    };
+
+    struct NodeHierarchyTraceback {
+        std::shared_ptr<Node> node = nullptr;
+        NodeHierarchyTraceback* prev = nullptr;
     };
 
     class Node::Iterator {
@@ -116,72 +124,72 @@ namespace aq {
     }
 
 
-    class Node::HierarchyIterator {
-    public:
-        using iterator_category = std::forward_iterator_tag;
-        using difference_type   = std::ptrdiff_t;
-        using value_type        = std::shared_ptr<Node>;
-        using pointer           = value_type*;
-        using reference         = value_type&;
+    // class Node::HierarchyIterator {
+    // public:
+    //     using iterator_category = std::forward_iterator_tag;
+    //     using difference_type   = std::ptrdiff_t;
+    //     using value_type        = std::shared_ptr<Node>;
+    //     using pointer           = value_type*;
+    //     using reference         = value_type&;
 
-        reference operator*() const { return *ptr; }
-        pointer operator->() { return ptr; }
+    //     reference operator*() const { return *ptr; }
+    //     pointer operator->() { return ptr; }
 
-        // Prefix increment
-        HierarchyIterator& operator++() {
-            if (current_index >= (*ptr)->child_nodes.size()) {
-                if (parents.empty()) {
-                    ptr = nullptr;
-                }
-                else {
-                    std::tie(ptr, current_index, current_transform) = parents.back();
-                    parents.pop_back();
-                    ++(*this);
-                }
-            } else {
-                parents.push_back(std::tuple<pointer, size_t, glm::mat4>(ptr, current_index+1, current_transform));
-                ptr = &(*ptr)->child_nodes[current_index];
-                current_index = 0;
-                current_transform = current_transform * (*ptr)->get_model_matrix();
-            }
+    //     // Prefix increment
+    //     HierarchyIterator& operator++() {
+    //         if (current_index >= (*ptr)->child_nodes.size()) {
+    //             if (parents.empty()) {
+    //                 ptr = nullptr;
+    //             }
+    //             else {
+    //                 std::tie(ptr, current_index, current_transform) = parents.back();
+    //                 parents.pop_back();
+    //                 ++(*this);
+    //             }
+    //         } else {
+    //             parents.push_back(std::tuple<pointer, size_t, glm::mat4>(ptr, current_index+1, current_transform));
+    //             ptr = &(*ptr)->child_nodes[current_index];
+    //             current_index = 0;
+    //             current_transform = current_transform * (*ptr)->get_model_matrix();
+    //         }
 
-            return *this;
-        }
+    //         return *this;
+    //     }
 
-        // Postfix increment
-        HierarchyIterator operator++(int) { HierarchyIterator tmp = *this; ++(*this); return tmp; }
+    //     // Postfix increment
+    //     HierarchyIterator operator++(int) { HierarchyIterator tmp = *this; ++(*this); return tmp; }
 
-        glm::mat4 get_transform() { return current_transform; }
+    //     glm::mat4 get_transform() { return current_transform; }
 
-        friend bool operator== (const HierarchyIterator& a, const HierarchyIterator& b) { return a.ptr == b.ptr; };
-        friend bool operator!= (const HierarchyIterator& a, const HierarchyIterator& b) { return a.ptr != b.ptr; };
+    //     friend bool operator== (const HierarchyIterator& a, const HierarchyIterator& b) { return a.ptr == b.ptr; };
+    //     friend bool operator!= (const HierarchyIterator& a, const HierarchyIterator& b) { return a.ptr != b.ptr; };
 
-    private:
-        // Use `ptr = nullptr` for end iterator
-        HierarchyIterator(pointer ptr) : ptr(ptr) {
-            if (ptr)
-                current_transform = (*ptr)->get_model_matrix();
-        } 
+    // private:
+    //     // Use `ptr = nullptr` for end iterator
+    //     HierarchyIterator(pointer ptr) : ptr(ptr) {
+    //         if (ptr)
+    //             current_transform = (*ptr)->get_model_matrix();
+    //     } 
 
-        pointer ptr = nullptr;
-        size_t current_index = 0;
-        glm::mat4 current_transform;
-        std::vector<std::tuple<pointer, size_t, glm::mat4>> parents;
+    //     pointer ptr = nullptr;
+    //     size_t current_index = 0;
+    //     glm::mat4 current_transform;
+    //     std::vector<std::tuple<pointer, size_t, glm::mat4>> parents;
     
-    friend class Node;
-    friend Node::HierarchyIterator hbegin(std::shared_ptr<Node>&);
-    friend Node::HierarchyIterator hend(std::shared_ptr<Node>&);
-    };
+    // friend class Node;
+    // friend Node::HierarchyIterator hbegin(std::shared_ptr<Node>&);
+    // friend Node::HierarchyIterator hend(std::shared_ptr<Node>&);
+    // };
 
-    // Iterate over node hierarchy; returns both the node and its model
-    // matrix calculated from its parents
-    inline Node::HierarchyIterator hbegin(std::shared_ptr<Node>& node) {
-        return Node::HierarchyIterator(&node);
-    }
+    // // Iterate over node hierarchy; returns both the node and its model
+    // // matrix calculated from its parents
+    // inline Node::HierarchyIterator hbegin(std::shared_ptr<Node>& node) {
+    //     return Node::HierarchyIterator(&node);
+    // }
 
-    inline Node::HierarchyIterator hend(std::shared_ptr<Node>& node) {
-        return Node::HierarchyIterator(nullptr);
-    }
+    // inline Node::HierarchyIterator hend(std::shared_ptr<Node>& node) {
+    //     return Node::HierarchyIterator(nullptr);
+    // }
 
 
 

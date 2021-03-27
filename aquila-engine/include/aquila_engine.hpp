@@ -43,6 +43,7 @@ namespace aq {
         uint64_t get_frame_number() const {return render_engine.get_frame_number();}
         SDL_Window* get_window() { return render_engine.window; }
         MaterialManager* get_material_manager() { return &render_engine.material_manager; }
+        LightManager* get_light_manager() { return &render_engine.light_manager; }
 
         std::shared_ptr<Node> root_node;
 

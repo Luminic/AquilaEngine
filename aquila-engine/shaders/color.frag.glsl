@@ -40,8 +40,22 @@ layout (std140, set=1, binding=0) readonly buffer MaterialPropertiesBuffer {
 layout (set=1, binding=1) uniform sampler samp;
 layout (set=1, binding=2) uniform texture2D tex[MAX_NR_TEXTURES];
 
+struct LightProperties{
+	vec4 color;
+	vec3 position;
+	int type; // 0:Point, 1:Sun, 2:Area, 3:Spot
+	vec3 direction;
+	uint shadow_map_ti;
+	vec4 misc;
+};
+
+layout (std140, set=1, binding=3) readonly buffer LightPropertiesBuffer {
+	LightProperties light_properties[];
+} light_properties_buffer;
+
 layout (push_constant) uniform VertConstants {
 	layout(offset=64) uint material_index;
+	layout(offset=68) uint nr_lights;
 } push_constants;
 
 #include "lighting.glsl"
@@ -67,13 +81,41 @@ vec3 lighting() {
 	} else {
 		metalness = texture(sampler2D(tex[mat_props.metalness_ti], samp), v_tex_coord).r;
 	}
+	vec3 ambient = albedo * mat_props.ambient;
+	if (mat_props.ambient_occlusion_ti != 0) {
+		ambient *= texture(sampler2D(tex[mat_props.ambient_occlusion_ti], samp), v_tex_coord).r;
+	}
 
 	vec3 normal = normalize(v_normal.xyz);
-	vec3 light_direction = -normalize(vec3(-0.3f, 1.0f, 0.3f));
 	vec3 view = normalize(camera.position.xyz - v_position.xyz);
 
-	vec3 BRDF = BRDF_Cook_Torrance(normal, view, light_direction, roughness, metalness, albedo);
-	return BRDF * vec3(1.0f,1.0f,1.0f) * max(dot(normal, light_direction), 0.0f);
+	vec3 total_color = ambient;
+	for (uint i=0; i<push_constants.nr_lights; ++i) {
+		LightProperties light_props = light_properties_buffer.light_properties[i];
+
+		switch (light_props.type) { // 0:Point, 1:Sun, 2:Area, 3:Spot
+		case 0: { // Point
+			float light_distance = distance(light_props.position, v_position.xyz);
+			vec3 light_direction = normalize(light_props.position-v_position.xyz);
+			vec3 light_color = light_props.color.xyz * light_props.color.w;
+			light_color /= light_distance * light_distance; // falloff
+
+			vec3 BRDF = BRDF_Cook_Torrance(normal, view, light_direction, roughness, metalness, albedo);
+			total_color += BRDF * light_color * max(dot(normal, light_direction), 0.0f);
+		} break;
+		case 1: // Sun
+			break;
+		case 2: // Area
+			break;
+		case 3: // Spot
+			break;
+		default:
+			break;
+		}
+	}
+
+	return total_color;
+
 }
 
 void main() {

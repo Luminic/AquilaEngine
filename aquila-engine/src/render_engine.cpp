@@ -40,6 +40,9 @@ namespace aq {
 
         ImGui::Render();
 
+        std::vector<std::pair<std::shared_ptr<Node>, glm::mat4>> flattened_hierarchy;
+        traverse_node_hierarchy(object_hierarchy, {}, flattened_hierarchy);
+
         uint64_t timeout{ 1'000'000'000 };
         uint frame_index = frame_number % FRAME_OVERLAP;
         FrameObjects& fo = get_frame_objects(frame_number);
@@ -54,6 +57,7 @@ namespace aq {
 
         // Update the material manager now that the frame has finished rendering
         material_manager.update(frame_index);
+        light_manager.update(frame_index);
 
         // Get next swap chain image
         auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, fo.present_semaphore, {});
@@ -92,7 +96,7 @@ namespace aq {
         fo.main_command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
         // Actual rendering
-        draw_objects(camera, object_hierarchy);
+        draw_objects(camera, flattened_hierarchy);
 
         // Render ImGui
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), fo.main_command_buffer);
@@ -123,6 +127,7 @@ namespace aq {
         descriptor_set_allocator.init(device);
         DescriptorSetBuilder per_frame_descriptor_set_builder(&descriptor_set_allocator, device, FRAME_OVERLAP);
         material_manager.init(FRAME_OVERLAP, max_nr_textures, 50, per_frame_descriptor_set_builder, &allocator, get_default_upload_context());
+        light_manager.init(FRAME_OVERLAP, 25, per_frame_descriptor_set_builder, &allocator, get_default_upload_context());
         
         per_frame_descriptor_sets = per_frame_descriptor_set_builder.build();
         per_frame_descriptor_set_layout = per_frame_descriptor_set_builder.get_layout();
@@ -132,6 +137,7 @@ namespace aq {
         });
 
         material_manager.descriptor_sets_created(per_frame_descriptor_sets);
+        light_manager.descriptor_sets_created(per_frame_descriptor_sets);
 
         if (!init_data()) return false;
         if (!init_descriptors()) return false;
@@ -144,6 +150,7 @@ namespace aq {
 
     void RenderEngine::cleanup_render_resources() {
         meshes_in_render.fill({}); // All frames have finished rendering
+        light_manager.destroy();
         material_manager.destroy();
         deletion_queue.flush();
     }
@@ -180,7 +187,7 @@ namespace aq {
 
         std::array<vk::PushConstantRange, 2> push_constant_ranges = {
             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4)),
-            vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, material_index), sizeof(uint))
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, material_index), 2*sizeof(uint))
         };
         
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info({}, set_layouts, push_constant_ranges);
@@ -367,7 +374,7 @@ namespace aq {
         return true;
     }
 
-    void RenderEngine::draw_objects(AbstractCamera* camera, std::shared_ptr<Node>& object_hierarchy) {
+    void RenderEngine::draw_objects(AbstractCamera* camera, const std::vector<std::pair<std::shared_ptr<Node>, glm::mat4>>& flattened_hierarchy) {
         uint frame_index = frame_number % FRAME_OVERLAP;
         FrameObjects& fo = get_frame_objects(frame_number);
         FrameData& fd = get_frame_data(frame_number);
@@ -385,14 +392,17 @@ namespace aq {
         fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {per_frame_descriptor_sets[frame_index]}, {});
 
         PushConstants constants;
+        constants.nr_lights = light_manager.get_nr_lights();
+        fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, nr_lights), sizeof(uint), (std::byte*)&constants + offsetof(PushConstants, nr_lights));
         
-        for (auto it=hbegin(object_hierarchy); it != hend(object_hierarchy); ++it) {
-            if ((*it)->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
-                constants.model = it.get_transform();
+        for (auto&[node, transformation_matrix] : flattened_hierarchy) {
+            if (node->get_child_meshes().size() > 0) { // Avoid pushing constants if no meshes are going to be drawn
+                constants.model = transformation_matrix;
                 fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4), &constants);
-                for (auto& mesh : (*it)->get_child_meshes()) {
+
+                for (auto& mesh : node->get_child_meshes()) {
                     constants.material_index = material_manager.get_material_index(mesh->material);
-                    fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, material_index), sizeof(uint), (unsigned char*)&constants + offsetof(PushConstants, material_index));
+                    fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, material_index), sizeof(uint), (std::byte*)&constants + offsetof(PushConstants, material_index));
 
                     fo.main_command_buffer.bindVertexBuffers(0, {mesh->combined_iv_buffer.buffer}, {mesh->vertex_data_offset});
                     fo.main_command_buffer.bindIndexBuffer(mesh->combined_iv_buffer.buffer, 0, index_vk_type);
@@ -403,6 +413,16 @@ namespace aq {
                     meshes_in_render[frame_index].push_back(mesh);
                 }
             }
+        }
+    }
+
+    void RenderEngine::traverse_node_hierarchy(std::shared_ptr<Node> node, NodeHierarchyTraceback traceback, std::vector<std::pair<std::shared_ptr<Node>, glm::mat4>>& flattened_hierarchy, glm::mat4 parent_transform) {
+        node->hierarchical_update(frame_number, parent_transform);
+        glm::mat4 hierarchical_transform = parent_transform * node->get_model_matrix();
+        flattened_hierarchy.push_back(std::pair<std::shared_ptr<Node>&, glm::mat4>{node, hierarchical_transform});
+
+        for (auto& child_node : node->get_child_nodes()) {
+            traverse_node_hierarchy(child_node, {node, &traceback}, flattened_hierarchy, hierarchical_transform);
         }
     }
 

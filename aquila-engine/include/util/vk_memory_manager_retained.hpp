@@ -1,5 +1,5 @@
-#ifndef UTIL_AQUILA_MEMORY_MANAGER_HPP
-#define UTIL_AQUILA_MEMORY_MANAGER_HPP
+#ifndef UTIL_AQUILA_MEMORY_MANAGER_RETAINED_HPP
+#define UTIL_AQUILA_MEMORY_MANAGER_RETAINED_HPP
 
 #include <vector>
 #include <list>
@@ -12,15 +12,12 @@
 
 #include "util/vk_types.hpp"
 #include "util/vk_resizable_buffer.hpp"
-#include "scene/aq_texture.hpp"
 
 namespace aq {
     
-    using ManagedMemoryIndex = size_t;
-
-    class MemoryManager {
+    class MemoryManagerRetained {
     public:
-        MemoryManager();
+        MemoryManagerRetained();
 
         bool init(
             uint frame_overlap,
@@ -61,7 +58,7 @@ namespace aq {
             };
             Type type;
             uint count = 1;
-            size_t index; 
+            ManagedMemoryIndex index; 
 
             // `memory` should be an array of size `object_size*count` bytes (uchars)
             std::shared_ptr<std::byte[]> memory;

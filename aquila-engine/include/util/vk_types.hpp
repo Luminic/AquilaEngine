@@ -79,6 +79,8 @@ namespace aq {
         vma::Allocator* allocator = nullptr;
     };
 
+    using ManagedMemoryIndex = size_t;
+
 }
 
 #endif

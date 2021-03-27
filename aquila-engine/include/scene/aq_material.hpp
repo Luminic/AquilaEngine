@@ -13,7 +13,7 @@
 #include "util/vk_types.hpp"
 #include "util/vk_resizable_buffer.hpp"
 #include "util/vk_descriptor_set_builder.hpp"
-#include "util/aq_memory_manager.hpp"
+#include "util/vk_memory_manager_retained.hpp"
 #include "scene/aq_texture.hpp"
 
 namespace aq {
@@ -33,7 +33,7 @@ namespace aq {
             float metalness = 0.0f;
             uint metalness_ti = 0;
 
-            glm::vec3 ambient = glm::vec3(0.1f);
+            glm::vec3 ambient = glm::vec3(0.005f);
             uint ambient_occlusion_ti = 0;
 
             uint normal_ti = 0;
@@ -76,12 +76,11 @@ namespace aq {
         // `descriptor_sets` should have size `frame_overlap` 
         void descriptor_sets_created(const std::vector<vk::DescriptorSet>& descriptor_sets);
 
-        // Destroy material buffer, descriptor layout, and descriptor sets
+        // Destroy material buffer and other resources
         void destroy();
 
-        // Material memory will not actually be uploaded to the GPU until `update` is called
-        void add_material(std::shared_ptr<Material> material);
         // Returns false if material is not being managed (has not been added)
+        bool add_material(std::shared_ptr<Material> material); // Material memory will not actually be uploaded to the GPU until `update` is called
         bool update_material(std::shared_ptr<Material> material);
         bool remove_material(std::shared_ptr<Material> material);
 
@@ -107,7 +106,7 @@ namespace aq {
         // std::vector<vk::DescriptorSet> descriptor_sets;
         void create_descriptor_writes();
 
-        MemoryManager material_memory;
+        MemoryManagerRetained material_memory;
         std::unordered_map<std::shared_ptr<Material>, ManagedMemoryIndex> material_indices;
 
         std::vector<std::shared_ptr<Texture>> textures;

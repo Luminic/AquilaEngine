@@ -12,6 +12,7 @@
 #include <imgui.h>
 
 #include <scene/aq_model_loader.hpp>
+#include <scene/aq_light.hpp>
 
 
 GameplayEngine::GameplayEngine() : camera_controller(&camera) {
@@ -183,4 +184,15 @@ void GameplayEngine::init_meshes() {
     aquila_engine.get_material_manager()->remove_material(triangle_mesh->material);
     aquila_engine.upload_materials(model_loader2.get_materials());
     aquila_engine.get_material_manager()->add_material(triangle_mesh->material);
+
+    std::vector lights = {
+        std::make_shared<aq::PointLight>("PointLight R", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(1.0f,0.0f,0.0f,1.0f)),
+        std::make_shared<aq::PointLight>("PointLight G", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(0.0f,1.0f,0.0f,1.0f)),
+        std::make_shared<aq::PointLight>("PointLight B", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(0.0f,0.0f,1.0f,1.0f)),
+        std::make_shared<aq::PointLight>("PointLight W", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(1.0f,1.0f,1.0f,1.0f)),
+    };
+    for (auto& light : lights) {
+        aquila_engine.get_light_manager()->add_light(light);
+        aquila_engine.root_node->add_node(light);
+    }
 }

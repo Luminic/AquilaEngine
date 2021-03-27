@@ -17,11 +17,6 @@ namespace aq {
     // Forward declare
     class InitializationEngine;
 
-    struct NodeHierarchyTraceback {
-        std::shared_ptr<Node> node = nullptr;
-        NodeHierarchyTraceback* prev = nullptr;
-    };
-
     class NodeHierarchyEditor {
     public:
         // If `RenderEngine` is set, `NodeHierarchyEditor` will be able to load models

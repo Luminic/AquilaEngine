@@ -89,10 +89,10 @@ namespace aq {
         add_material(default_material);
     }
 
-    void MaterialManager::add_material(std::shared_ptr<Material> material) {
+    bool MaterialManager::add_material(std::shared_ptr<Material> material) {
         // Material was already added
         if (material_indices.find(material) != material_indices.end())
-            return;
+            return false;
 
         if (material->textures[Material::Albedo]) {
             material->properties.albedo_ti = add_texture(material->textures[Material::Albedo]);
@@ -112,6 +112,7 @@ namespace aq {
 
         ManagedMemoryIndex material_index = material_memory.add_object((void*) &material->properties);
         material_indices[material] = material_index;
+        return true;
     }
 
     bool MaterialManager::update_material(std::shared_ptr<Material> material) {
