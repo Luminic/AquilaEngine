@@ -50,11 +50,11 @@ namespace aq {
     }
 
     ManagedMemoryIndex MemoryManagerImmediate::add_object(const void* object) {
-        update_queue.insert(update_queue.end(), (std::byte*)object, (std::byte*)object+object_size);
+        update_queue.insert(update_queue.end(), (std::byte*)object, (std::byte*)(object)+object_size);
         return nr_objects++;
     }
 
-    void MemoryManagerImmediate::update(uint safe_frame) {
+    size_t MemoryManagerImmediate::update(uint safe_frame) {
         auto& buffer = buffers[safe_frame];
 
         // Make sure the buffer has enough space
@@ -64,7 +64,10 @@ namespace aq {
         assert(update_queue.size() == nr_objects * object_size);
         memcpy(buffer.buff_mem, update_queue.data(), update_queue.size());
         update_queue.clear();
+        size_t objects_uploaded = nr_objects;
         nr_objects = 0;
+
+        return objects_uploaded;
     }
 
     void MemoryManagerImmediate::reserve(size_t nr_objects, uint safe_frame) {

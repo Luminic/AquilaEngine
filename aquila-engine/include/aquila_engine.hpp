@@ -9,6 +9,7 @@
 #include "render_engine.hpp"
 #include "scene/aq_camera.hpp"
 #include "scene/aq_node.hpp"
+#include "scene/aq_light.hpp"
 #include "scene/aq_material.hpp"
 
 namespace aq {
@@ -43,7 +44,7 @@ namespace aq {
         uint64_t get_frame_number() const {return render_engine.get_frame_number();}
         SDL_Window* get_window() { return render_engine.window; }
         MaterialManager* get_material_manager() { return &render_engine.material_manager; }
-        LightManager* get_light_manager() { return &render_engine.light_manager; }
+        LightMemoryManager* get_light_memory_manager() { return &render_engine.light_memory_manager; }
 
         std::shared_ptr<Node> root_node;
 

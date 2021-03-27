@@ -55,10 +55,6 @@ namespace aq {
         // Rendering is finished so the shared pointers can be let go
         meshes_in_render[frame_index].clear();
 
-        // Update the material manager now that the frame has finished rendering
-        material_manager.update(frame_index);
-        light_manager.update(frame_index);
-
         // Get next swap chain image
         auto [ani_result, sw_ch_image_index] = device.acquireNextImageKHR(swap_chain, timeout, fo.present_semaphore, {});
         if (ani_result == vk::Result::eSuboptimalKHR || ani_result == vk::Result::eErrorOutOfDateKHR) {
@@ -127,7 +123,7 @@ namespace aq {
         descriptor_set_allocator.init(device);
         DescriptorSetBuilder per_frame_descriptor_set_builder(&descriptor_set_allocator, device, FRAME_OVERLAP);
         material_manager.init(FRAME_OVERLAP, max_nr_textures, 50, per_frame_descriptor_set_builder, &allocator, get_default_upload_context());
-        light_manager.init(FRAME_OVERLAP, 25, per_frame_descriptor_set_builder, &allocator, get_default_upload_context());
+        light_memory_manager.init(FRAME_OVERLAP, 25, per_frame_descriptor_set_builder, &allocator, get_default_upload_context());
         
         per_frame_descriptor_sets = per_frame_descriptor_set_builder.build();
         per_frame_descriptor_set_layout = per_frame_descriptor_set_builder.get_layout();
@@ -137,7 +133,7 @@ namespace aq {
         });
 
         material_manager.descriptor_sets_created(per_frame_descriptor_sets);
-        light_manager.descriptor_sets_created(per_frame_descriptor_sets);
+        light_memory_manager.descriptor_sets_created(per_frame_descriptor_sets);
 
         if (!init_data()) return false;
         if (!init_descriptors()) return false;
@@ -150,7 +146,7 @@ namespace aq {
 
     void RenderEngine::cleanup_render_resources() {
         meshes_in_render.fill({}); // All frames have finished rendering
-        light_manager.destroy();
+        light_memory_manager.destroy();
         material_manager.destroy();
         deletion_queue.flush();
     }
@@ -379,6 +375,10 @@ namespace aq {
         FrameObjects& fo = get_frame_objects(frame_number);
         FrameData& fd = get_frame_data(frame_number);
 
+        // Update the managers now that the frame has finished rendering
+        material_manager.update(frame_index);
+        uint nr_lights = (uint) light_memory_manager.update(frame_index);
+
         fo.main_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, triangle_pipeline);
 
         size_t camera_data_gpu_size = vk_util::pad_uniform_buffer_size(sizeof(GPUCameraData), gpu_properties.limits.minUniformBufferOffsetAlignment);
@@ -392,7 +392,7 @@ namespace aq {
         fo.main_command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, triangle_pipeline_layout, 1, {per_frame_descriptor_sets[frame_index]}, {});
 
         PushConstants constants;
-        constants.nr_lights = light_manager.get_nr_lights();
+        constants.nr_lights = nr_lights;
         fo.main_command_buffer.pushConstants(triangle_pipeline_layout, vk::ShaderStageFlagBits::eFragment, offsetof(PushConstants, nr_lights), sizeof(uint), (std::byte*)&constants + offsetof(PushConstants, nr_lights));
         
         for (auto&[node, transformation_matrix] : flattened_hierarchy) {

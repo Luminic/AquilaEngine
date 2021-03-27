@@ -192,7 +192,7 @@ void GameplayEngine::init_meshes() {
         std::make_shared<aq::PointLight>("PointLight W", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(1.0f,1.0f,1.0f,1.0f)),
     };
     for (auto& light : lights) {
-        aquila_engine.get_light_manager()->add_light(light);
+        light->set_memory_manager(aquila_engine.get_light_memory_manager());
         aquila_engine.root_node->add_node(light);
     }
 }

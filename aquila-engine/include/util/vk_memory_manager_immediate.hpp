@@ -36,7 +36,8 @@ namespace aq {
 
         // Uploads object memory added through `add_object` to the GPU for `safe_frame`
         // `safe_frame` must be finished rendering (usually the frame about to be rendered onto)
-        void update(uint safe_frame);
+        // Returns the number of objects uploaded to the GPU
+        size_t update(uint safe_frame);
 
         // Ensures the buffer for `safe_frame` has enough space for `nr_objects` objects
         // `safe_frame` must be finished rendering (usually the frame about to be rendered onto)

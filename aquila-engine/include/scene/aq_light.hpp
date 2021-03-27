@@ -13,6 +13,8 @@
 
 namespace aq {
 
+    class LightMemoryManager;
+
     class Light : public Node {
     public:
         Light(
@@ -53,21 +55,25 @@ namespace aq {
             // Misc data to be used for different purposes depending on the light type
             glm::vec4 misc;
         };
-        Properties properties;
 
         virtual Properties get_properties(glm::mat4 parent_transform) = 0;
-        virtual Properties get_properties() { return get_properties(parent_transform_cache); }
 
         virtual void hierarchical_update(uint64_t frame_number, const glm::mat4& parent_transform) override;
 
+        virtual Light& set_memory_manager(LightMemoryManager* memory_manager) { this->memory_manager=memory_manager; return *this; }
+        virtual LightMemoryManager* get_memory_manager() { return memory_manager; }
+
     protected:
-        glm::mat4 parent_transform_cache;
-        uint64_t last_hierarchical_update; // Used to warn user if there are multiple instances of `PointLight` in hierarchy
+        LightMemoryManager* memory_manager = nullptr;
+        uint64_t last_hierarchical_update = UINT64_MAX; // Used to warn user if there are multiple instances of `PointLight` in hierarchy
     };
 
-    class LightManager {
+    // A bit different from `MaterialManager` in the way that:
+    // `MaterialManager` gets the pointer to `Material` while
+    // `Light` gets the pointer to `LightMemoryManager`
+    class LightMemoryManager {
     public:
-        LightManager();
+        LightMemoryManager();
 
         // Initialize the `LightManager`
         // Call `descriptor_sets_created(...)` after `per_frame_descriptor_set_builder.build()`
@@ -86,19 +92,15 @@ namespace aq {
 
         void destroy();
 
-        // Returns false if `light` is not being managed (has not been added)
-        bool add_light(std::shared_ptr<Light> light); // Light memory will not actually be uploaded to the GPU until `update` is called
-        bool remove_light(std::shared_ptr<Light> light);
+        void add_light(const Light::Properties& light_properties); // Light memory will not actually be uploaded to the GPU until `update` is called
 
         // `safe_frame` must be finished rendering (usually the frame about to be rendered onto)
         // Uploads light memory to the buffer for `safe_frame`
-        void update(uint safe_frame);
-
-        size_t get_nr_lights() const { return lights.size(); }
+        // Returns the number of lights uploaded
+        size_t update(uint safe_frame);
 
     private:
         MemoryManagerImmediate light_memory;
-        std::unordered_set<std::shared_ptr<Light>> lights;
 
         uint frame_overlap;
         size_t initial_capacity;

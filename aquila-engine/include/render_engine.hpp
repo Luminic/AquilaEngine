@@ -42,7 +42,7 @@ namespace aq {
         uint64_t get_frame_number() const {return frame_number;}
 
         MaterialManager material_manager;
-        LightManager light_manager;
+        LightMemoryManager light_memory_manager;
 
     protected:
         virtual bool init_render_resources() override;

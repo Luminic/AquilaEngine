@@ -23,14 +23,15 @@ namespace aq {
 
     void Light::hierarchical_update(uint64_t frame_number, const glm::mat4& parent_transform) {
         if (last_hierarchical_update == frame_number) std::cerr << "There can only be one Light instance in a hierarchy.\n";
-        parent_transform_cache = parent_transform;
+        if (memory_manager) memory_manager->add_light(get_properties(parent_transform));
+        else std::cerr << "Unmanaged light in render hierarchy.\n";
         last_hierarchical_update = frame_number;
     }
 
 
-    LightManager::LightManager() {}
+    LightMemoryManager::LightMemoryManager() {}
 
-    void LightManager::init(
+    void LightMemoryManager::init(
         uint frame_overlap,
         size_t initial_capacity,
         DescriptorSetBuilder& per_frame_descriptor_set_builder, // should have multiplicity of `frame_overlap`
@@ -45,7 +46,7 @@ namespace aq {
         per_frame_descriptor_set_builder.add_binding({(int) PerFrameBufferBindings::LightPropertiesBuffer, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eFragment});
     }
 
-    void LightManager::descriptor_sets_created(const std::vector<vk::DescriptorSet>& descriptor_sets) {
+    void LightMemoryManager::descriptor_sets_created(const std::vector<vk::DescriptorSet>& descriptor_sets) {
         this->descriptor_sets = descriptor_sets;
 
         // Init material buffers
@@ -68,28 +69,17 @@ namespace aq {
         );
     }
 
-    void LightManager::destroy() {
+    void LightMemoryManager::destroy() {
         light_memory.destroy();
-        lights.clear();
         descriptor_sets.clear();
     }
 
-    bool LightManager::add_light(std::shared_ptr<Light> light) {
-        return lights.insert(light).second;
+    void LightMemoryManager::add_light(const Light::Properties& light_properties) {
+        light_memory.add_object(&light_properties);
     }
 
-    bool LightManager::remove_light(std::shared_ptr<Light> light) {
-        return lights.erase(light);
-    }
-
-    void LightManager::update(uint safe_frame) {
-        light_memory.reserve(lights.size(), safe_frame);
-        size_t i = 0;
-        for (auto& light : lights) {
-            Light::Properties light_properties = light->get_properties();
-            light_memory.add_object_direct(i, &light_properties, safe_frame);
-            ++i;
-        }
+    size_t LightMemoryManager::update(uint safe_frame) {
+        return light_memory.update(safe_frame);
     }
 
 
