@@ -6,6 +6,9 @@ This is a 3D toy engine / rasterizer created using Vulkan and C++. Currently, it
 Currently, PBR Lighting is being implemented.
 
 ## Timeline:
+
+3/26/2021 - Point Lights! (195 hours)
+
 1/4/2021 - Development Paused: Busy with school
 
 1/3/2021 - Material System! (123 hours of development)
@@ -19,6 +22,8 @@ Currently, PBR Lighting is being implemented.
 12/16/2020 - Project Started!
 
 ## Screenshots:
+
+![point lights](https://github.com/Luminic/AquilaEngine/blob/master/screenshots/textures_2021-03-26.png)
 
 ![textures](https://github.com/Luminic/AquilaEngine/blob/master/screenshots/textures_2021-01-01_2.png)
 
