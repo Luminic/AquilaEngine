@@ -23,7 +23,7 @@ Currently, PBR Lighting is being implemented.
 
 ## Screenshots:
 
-![point lights](https://github.com/Luminic/AquilaEngine/blob/master/screenshots/textures_2021-03-26.png)
+![point lights](https://github.com/Luminic/AquilaEngine/blob/master/screenshots/point_lights_2021-03-26.png)
 
 ![textures](https://github.com/Luminic/AquilaEngine/blob/master/screenshots/textures_2021-01-01_2.png)
 
