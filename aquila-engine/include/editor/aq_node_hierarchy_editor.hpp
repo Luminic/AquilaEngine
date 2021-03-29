@@ -11,6 +11,7 @@
 #include "scene/aq_material.hpp"
 #include "scene/aq_mesh.hpp"
 #include "scene/aq_node.hpp"
+#include "scene/aq_light.hpp"
 
 namespace aq {
 
@@ -20,7 +21,7 @@ namespace aq {
     class NodeHierarchyEditor {
     public:
         // If `RenderEngine` is set, `NodeHierarchyEditor` will be able to load models
-        NodeHierarchyEditor(MaterialManager* material_manager, InitializationEngine* init_engine=nullptr);
+        NodeHierarchyEditor(MaterialManager* material_manager, LightMemoryManager* light_memory_manager=nullptr, InitializationEngine* init_engine=nullptr);
         ~NodeHierarchyEditor();
 
         void draw_tree(std::shared_ptr<Node> root_node, ImGuiTreeNodeFlags flags=ImGuiTreeNodeFlags_AllowItemOverlap);
@@ -28,12 +29,14 @@ namespace aq {
         void draw_branch(std::shared_ptr<Mesh> mesh, NodeHierarchyTraceback traceback, ImGuiTreeNodeFlags flags={});
         void draw_branch(std::shared_ptr<Material> material, ImGuiTreeNodeFlags flags={});
         void draw_leaf(std::shared_ptr<Node> node, glm::mat4 hierarchical_transform, ImGuiTreeNodeFlags flags={});
+        void draw_leaf(std::shared_ptr<Light> light, glm::mat4 parent_transform, ImGuiTreeNodeFlags flags={});
         void draw_leaf(std::shared_ptr<Mesh> mesh);
         void draw_leaf(std::shared_ptr<Material> material);
 
     private:
         // For when materials are updated
         MaterialManager* material_manager;
+        LightMemoryManager* light_memory_manager;
         InitializationEngine* init_engine;
 
         // Persistent data

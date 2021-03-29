@@ -208,6 +208,7 @@ namespace aq {
                 .setDepthClampEnable(VK_FALSE)
                 .setRasterizerDiscardEnable(VK_FALSE)
                 .setPolygonMode(vk::PolygonMode::eFill)
+                .setFrontFace(vk::FrontFace::eCounterClockwise)
                 .setCullMode(vk::CullModeFlagBits::eNone)
                 .setDepthBiasEnable(VK_FALSE)
                 .setLineWidth(1.0f) )

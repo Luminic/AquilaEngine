@@ -9,6 +9,7 @@
 
 #include "init_engine.hpp"
 #include "scene/aq_model_loader.hpp"
+#include "editor/aq_mesh_creator.hpp"
 #include "editor/file_browser.hpp"
 
 // Helper to display a little (?) mark which shows a tooltip when hovered.
@@ -30,6 +31,9 @@ namespace aq {
         bool keep_transform = false;
         std::string error_text;
 
+        int chosen_light_type = (int)Light::Type::Point; // Have to use int so it can be used in combo box
+        int chosen_mesh_type = 0;
+        int sphere_creation_res[2] = {32, 16};
         FileBrowser* file_browser = nullptr;
 
         // Variables for Euler Angle Rotation Editor
@@ -53,7 +57,7 @@ namespace aq {
         std::variant<std::shared_ptr<Node>, std::shared_ptr<Mesh>> data;
     };
 
-    NodeHierarchyEditor::NodeHierarchyEditor(MaterialManager* material_manager, InitializationEngine* init_engine) : material_manager(material_manager), init_engine(init_engine) {
+    NodeHierarchyEditor::NodeHierarchyEditor(MaterialManager* material_manager, LightMemoryManager* light_memory_manager, InitializationEngine* init_engine) : material_manager(material_manager), light_memory_manager(light_memory_manager), init_engine(init_engine) {
         data = new NodeHierarchyEditorData();
     };
 
@@ -64,46 +68,113 @@ namespace aq {
     void NodeHierarchyEditor::draw_tree(std::shared_ptr<Node> root_node, ImGuiTreeNodeFlags flags) {
         draw_branch(root_node, {}, glm::mat4(1.0f), flags);
 
+
         ImGui::Separator();
-
-        if (ImGui::Button("Create New Node")) { root_node->add_node(std::make_shared<Node>()); }
-        ImGui::SameLine();
-        if (ImGui::Button("Create New Material")) { data->error_text = "Material viewer currently unimplemented."; };
-        ImGui::SameLine();
-        if (ImGui::Button("Load Model") && !data->file_browser) {
-            if (init_engine) data->file_browser = new FileBrowser();
-            else data->error_text = "NHE cannot load models with null `InitEngine`";
-        }
-
-        if (data->file_browser) {
-            switch (data->file_browser->get_status()) {
-            case FileBrowser::Status::Selecting:
-                data->file_browser->draw();
-                break;
-            case FileBrowser::Status::Confirmed: {
-                ModelLoader loader(data->file_browser->current_directory(), data->file_browser->current_selection());
-                // Upload Meshes
-                for (auto& node : loader.get_root_node())
-                    for (auto& mesh : node->get_child_meshes())
-                        if (!mesh->is_uploaded()) // A Mesh might appear several times in a node tree so make sure it's only uploaded once
-                            mesh->upload(init_engine->get_allocator(), init_engine->get_default_upload_context());
-                // Upload Materials
-                for (auto& material : loader.get_materials())
-                    material_manager->add_material(material);
-                // Add root model node to hierarchy
-                root_node->add_node(loader.get_root_node());
-
-            } // Intentional fallthrough to `FileBrowser::Status::Canceled`
-            case FileBrowser::Status::Canceled:
-                delete data->file_browser;
-                data->file_browser = nullptr;
-                break;
-            }
-        }
-
         ImGui::Checkbox("Keep Transform", &data->keep_transform);
         ImGui::SameLine();
         HelpMarker("Nodes will have the same transformation when moved to different hierarchies. Might have side effects on other instances of the moved node.");
+
+
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("Create New...")) {
+            if (ImGui::Button("Create New Mesh")) {
+                if (init_engine) ImGui::OpenPopup("Mesh Creator");
+                else data->error_text = "NHE cannot create meshes with null `InitEngine`";
+            }
+            if (ImGui::BeginPopup("Mesh Creator")) {
+                ImGui::Combo("Type", &data->chosen_mesh_type, "Cube\0Sphere\0");
+
+                switch (data->chosen_mesh_type) {
+                case 0: break;
+                case 1:
+                    ImGui::DragInt2("Resolution", data->sphere_creation_res, 1.0f, 3, INT_MAX, "%d", ImGuiSliderFlags_AlwaysClamp);
+                    break;
+                default: break;
+                }
+
+                if (ImGui::Button("Create")) {
+                    std::shared_ptr<Mesh> mesh;
+                    switch (data->chosen_mesh_type) {
+                        case 0: mesh = mesh_creator::create_cube(); break;
+                        case 1: mesh = mesh_creator::create_sphere(data->sphere_creation_res[0], data->sphere_creation_res[1]); break;
+                        default: data->error_text = "Mesh shape unimplemented"; break;
+                    }
+                    if (mesh) {
+                        mesh->upload(init_engine->get_allocator(), init_engine->get_default_upload_context());
+                        root_node->add_mesh(mesh);
+                    }
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
+
+            if (ImGui::Button("Create New Material")) { data->error_text = "Material viewer currently unimplemented."; }
+            if (ImGui::Button("Create New Node")) { root_node->add_node(std::make_shared<Node>("New Node")); }
+            if (ImGui::Button("Create New Light")) {
+                if (light_memory_manager) ImGui::OpenPopup("Light Creator");
+                else data->error_text = "NHE cannot create lights with null `LightMemoryManager`";
+            }
+            if (ImGui::BeginPopup("Light Creator")) {
+                ImGui::Combo("Type", &data->chosen_light_type, Light::TypeNames.data(), Light::TypeNames.size());
+                if (ImGui::Button("Create")) {
+                    std::shared_ptr<Light> new_light;
+                    switch ((Light::Type) data->chosen_light_type) {
+                        case Light::Type::Point:
+                            new_light = std::make_shared<PointLight>("New Light");
+                            break;
+                        case Light::Type::Sun:
+                        case Light::Type::Area:
+                        case Light::Type::Spot:
+                            data->error_text = "Light type currently unimplemented";
+                            break;
+                        default:
+                            data->error_text = "Could not create light: unknown class";
+                            break;
+                    }
+                    if (new_light) {
+                        new_light->set_memory_manager(light_memory_manager);
+                        root_node->add_node(new_light);
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel")) { ImGui::CloseCurrentPopup(); }
+                ImGui::EndPopup();
+            }
+
+            if (ImGui::Button("Load Model") && !data->file_browser) {
+                if (init_engine) data->file_browser = new FileBrowser();
+                else data->error_text = "NHE cannot load models with null `InitEngine`";
+            }
+            if (data->file_browser) {
+                switch (data->file_browser->get_status()) {
+                case FileBrowser::Status::Selecting:
+                    data->file_browser->draw();
+                    break;
+                case FileBrowser::Status::Confirmed: {
+                    ModelLoader loader(data->file_browser->current_directory(), data->file_browser->current_selection());
+                    // Upload Meshes
+                    for (auto& node : loader.get_root_node())
+                        for (auto& mesh : node->get_child_meshes())
+                            if (!mesh->is_uploaded()) // A Mesh might appear several times in a node tree so make sure it's only uploaded once
+                                mesh->upload(init_engine->get_allocator(), init_engine->get_default_upload_context());
+                    // Upload Materials
+                    for (auto& material : loader.get_materials())
+                        material_manager->add_material(material);
+                    // Add root model node to hierarchy
+                    root_node->add_node(loader.get_root_node());
+
+                } // Intentional fallthrough to `FileBrowser::Status::Canceled`
+                case FileBrowser::Status::Canceled:
+                    delete data->file_browser;
+                    data->file_browser = nullptr;
+                    break;
+                }
+            }
+
+        }
 
         if (!data->error_text.empty()) {
             ImGui::Separator();
@@ -185,9 +256,15 @@ namespace aq {
                 }
             }
 
-            if (ImGui::TreeNodeEx("Properties", flags)) {
+            if (ImGui::TreeNodeEx("Properties (Node)", flags)) {
                 draw_leaf(node, hierarchical_transform, flags);
                 ImGui::TreePop();
+            }
+            if (std::shared_ptr<Light> light = std::dynamic_pointer_cast<Light>(node)) {
+                if (ImGui::TreeNodeEx("Properties (Light)", flags)) {
+                    draw_leaf(light, parent_transform, flags);
+                    ImGui::TreePop();
+                }
             }
 
             for(auto& child_mesh : node->get_child_meshes()) {
@@ -216,6 +293,15 @@ namespace aq {
         }
 
         if (node_open) {
+            ImGui::SameLine();
+            bool delete_mesh = ImGui::SmallButton("x");
+            if (delete_mesh) {
+                traceback.node->remove_mesh(mesh.get());
+                // Don't draw anything else
+                ImGui::TreePop();
+                return;
+            }
+
             draw_leaf(mesh);
             if (mesh->material) draw_branch(mesh->material, flags);
             ImGui::TreePop();
@@ -283,6 +369,38 @@ namespace aq {
         ImGui::DragFloat4("##htr1", glm::value_ptr(hierarchical_transform[1]), 0.01f, 0.0f, 0.0f, "%.3f", ImGuiSliderFlags_NoInput);
         ImGui::DragFloat4("##htr2", glm::value_ptr(hierarchical_transform[2]), 0.01f, 0.0f, 0.0f, "%.3f", ImGuiSliderFlags_NoInput);
         ImGui::DragFloat4("##htr3", glm::value_ptr(hierarchical_transform[3]), 0.01f, 0.0f, 0.0f, "%.3f", ImGuiSliderFlags_NoInput);
+    }
+
+    void NodeHierarchyEditor::draw_leaf(std::shared_ptr<Light> light, glm::mat4 parent_transform, ImGuiTreeNodeFlags flags) {
+        if (!light) return;
+
+        Light::Properties light_properties = light->get_properties(parent_transform);
+
+        switch (light->get_type()) {
+        case Light::Type::Point: {
+            std::shared_ptr<PointLight> pl = std::dynamic_pointer_cast<PointLight>(light);
+            assert(pl);
+            ImGui::Text("PointLight");
+            ImGui::Text("Shadow map texture index: %u", light_properties.shadow_map_ti);
+            ImGui::ColorEdit3("Color", glm::value_ptr(pl->color));
+            ImGui::DragFloat("Power", &pl->color.w, 0.01f, 0.0f, FLT_MAX);
+            ImGui::DragFloat3("Final Position", glm::value_ptr(light_properties.position), 0.01f, 0.0f, FLT_MAX, "%.3f", ImGuiSliderFlags_NoInput);
+            ImGui::SameLine(); HelpMarker("Final position of the light. Modify light position (relative to parent node) in node properties.");
+        } break;
+        case Light::Type::Sun: {}; // Unimplemented so fallthrough to default
+        case Light::Type::Area: {}; // Unimplemented so fallthrough to default
+        case Light::Type::Spot: {}; // Unimplemented so fallthrough to default
+        default: {
+            ImGui::Text("Unknown Light Type: %u", (uint)light_properties.type);
+            ImGui::Text("Shadow map texture index: %u", light_properties.shadow_map_ti);
+            ImGui::ColorEdit3("Color", glm::value_ptr(light_properties.color), ImGuiColorEditFlags_NoPicker);
+            ImGui::DragFloat("Power", &light_properties.color.w, 0.01f, 0.0f, FLT_MAX, "%.3f", ImGuiSliderFlags_NoInput);
+            ImGui::DragFloat3("Final Position", glm::value_ptr(light_properties.position), 0.01f, 0.0f, FLT_MAX, "%.3f", ImGuiSliderFlags_NoInput);
+            ImGui::SameLine(); HelpMarker("Final position of the light. Modify light position (relative to parent node) in node properties.");
+            ImGui::DragFloat3("Direction", glm::value_ptr(light_properties.direction), 0.01f, 0.0f, FLT_MAX, "%.3f", ImGuiSliderFlags_NoInput);
+            ImGui::DragFloat4("Misc", glm::value_ptr(light_properties.misc), 0.01f, 0.0f, FLT_MAX, "%.3f", ImGuiSliderFlags_NoInput);
+        } break;
+        }
     }
 
     void NodeHierarchyEditor::draw_leaf(std::shared_ptr<Mesh> mesh) {

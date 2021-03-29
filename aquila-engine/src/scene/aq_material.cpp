@@ -19,6 +19,7 @@ namespace aq {
         // Default (error) material
         default_material = std::make_shared<Material>("Error Material");
         default_material->properties.albedo = glm::vec4(1.0f, 0.0f, 1.0f, 0.0f);
+        default_material->properties.ambient = default_material->properties.albedo;
     }
 
     void MaterialManager::init(

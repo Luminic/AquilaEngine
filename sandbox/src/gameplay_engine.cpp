@@ -13,6 +13,7 @@
 
 #include <scene/aq_model_loader.hpp>
 #include <scene/aq_light.hpp>
+#include <editor/aq_mesh_creator.hpp>
 
 
 GameplayEngine::GameplayEngine() : camera_controller(&camera) {
@@ -152,8 +153,8 @@ void GameplayEngine::init_meshes() {
     };
 
     triangle_mesh->material = std::make_shared<aq::Material>("test");
-    // triangle_mesh->material->textures[aq::Material::Albedo] = std::make_shared<aq::Texture>();
-    // triangle_mesh->material->textures[aq::Material::Albedo]->upload_later((resource_path + "happy-tree.png").c_str());
+    triangle_mesh->material->textures[aq::Material::Albedo] = std::make_shared<aq::Texture>();
+    triangle_mesh->material->textures[aq::Material::Albedo]->upload_later((resource_path + "happy-tree.png").c_str());
 
 
     aq::ModelLoader model_loader(resource_path, "monkey.obj");
@@ -178,21 +179,40 @@ void GameplayEngine::init_meshes() {
     rect->add_mesh(triangle_mesh);
     aquila_engine.root_node->add_node(rect);
 
+    // std::vector lights = {
+    //     std::make_shared<aq::PointLight>("PointLight R", glm::vec3(-2.0f,-2.0f, 0.5f), glm::vec4(1.0f,0.0f,0.0f,1.0f)),
+    //     std::make_shared<aq::PointLight>("PointLight G", glm::vec3( 0.0f,-2.0f,-2.0f), glm::vec4(0.0f,1.0f,0.0f,1.0f)),
+    //     std::make_shared<aq::PointLight>("PointLight B", glm::vec3( 1.5f,-2.0f, 0.5f), glm::vec4(0.0f,0.0f,1.0f,1.0f)),
+    //     std::make_shared<aq::PointLight>("PointLight W", glm::vec3( 0.0f,-4.0f, 0.1f), glm::vec4(1.0f,1.0f,1.0f,9.0f)),
+    // };
+    std::vector<std::shared_ptr<aq::PointLight>> lights;
+    for (auto i=0; i<25; ++i){
+        lights.push_back(std::make_shared<aq::PointLight>(
+            "PointLight",
+            glm::vec3(rand()%1000/100.0f - 5.0f, -rand()%1000/100.0f, rand()%1000/100.0f - 5.0f),
+            glm::vec4(rand()%100/100.0f, rand()%100/100.0f, rand()%100/100.0f, rand()%1000/50.0f)
+        ));
+    }
+    for (auto& light : lights) {
+        std::shared_ptr<aq::Material> light_material = std::make_shared<aq::Material>(light->name + std::string(" Material"));
+        light_material->properties.albedo = glm::vec3(light->color) * light->color.w;
+        light_material->properties.ambient = light_material->properties.albedo;
+
+        std::shared_ptr<aq::Mesh> light_mesh = aq::mesh_creator::create_sphere(16,8);
+        light_mesh->name = light->name + std::string(" Mesh");
+        light_mesh->material = light_material;
+
+        light->set_memory_manager(aquila_engine.get_light_memory_manager());
+        light->add_mesh(light_mesh);
+        light->scale = glm::vec3(0.1f);
+        aquila_engine.root_node->add_node(light);
+        aquila_engine.upload_materials({light_material});
+    }
+
     aquila_engine.upload_meshes();
     aquila_engine.upload_materials({triangle_mesh->material});
     aquila_engine.upload_materials(model_loader.get_materials());
     aquila_engine.get_material_manager()->remove_material(triangle_mesh->material);
     aquila_engine.upload_materials(model_loader2.get_materials());
     aquila_engine.get_material_manager()->add_material(triangle_mesh->material);
-
-    std::vector lights = {
-        std::make_shared<aq::PointLight>("PointLight R", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(1.0f,0.0f,0.0f,1.0f)),
-        std::make_shared<aq::PointLight>("PointLight G", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(0.0f,1.0f,0.0f,1.0f)),
-        std::make_shared<aq::PointLight>("PointLight B", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(0.0f,0.0f,1.0f,1.0f)),
-        std::make_shared<aq::PointLight>("PointLight W", glm::vec3(0.0f,0.0f,0.0f), glm::vec4(1.0f,1.0f,1.0f,1.0f)),
-    };
-    for (auto& light : lights) {
-        light->set_memory_manager(aquila_engine.get_light_memory_manager());
-        aquila_engine.root_node->add_node(light);
-    }
 }

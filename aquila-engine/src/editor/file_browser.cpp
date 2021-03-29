@@ -67,7 +67,7 @@ namespace aq {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel")) {
+            if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape))) {
                 data->status = Status::Canceled;
                 data->selected = "";
                 data->file_path = "";

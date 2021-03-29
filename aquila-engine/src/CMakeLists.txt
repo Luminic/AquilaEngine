@@ -30,6 +30,7 @@ add_library(aquila-engine SHARED
     scene/aq_material.cpp
 
     editor/aq_node_hierarchy_editor.cpp
+    editor/aq_mesh_creator.cpp
     editor/file_browser.cpp
 )
 

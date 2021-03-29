@@ -37,8 +37,9 @@ namespace aq {
             Sun   = 1, // Currently Unimplemented
             Area  = 2, // Currently Unimplemented
             Spot  = 3, // Currently Unimplemented
-            Other = UINT_MAX
+            Other = 4  // Always the maximum value
         };
+        static constexpr std::array<const char*,5> TypeNames{{"Point", "Sun", "Area", "Spot", "Other"}};
         virtual Type get_type() const = 0;
 
         // Every light *should* be able to be represented by Light::Properties
