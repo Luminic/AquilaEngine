@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <deque>
+#include <unordered_map>
+#include <functional>
 
 #define VULKAN_HPP_NO_EXCEPTIONS
 #define VULKAN_HPP_ASSERT_ON_RESULT

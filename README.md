@@ -21,6 +21,31 @@ Currently, PBR Lighting is being implemented.
 
 12/16/2020 - Project Started!
 
+## Installing, Building, and Running:
+
+Install Dependencies:
+* Vulkan
+* Vulkan SDK: https://vulkan.lunarg.com/
+* SDL2: https://www.libsdl.org/
+* Assimp: https://github.com/assimp/assimp/blob/master/Build.md
+* CMake: https://cmake.org/download/
+
+```bash
+git clone --recursive https://github.com/Luminic/AquilaEngine.git
+cd AquilaEngine/aquila-engine
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build . --parallel 4
+cd ../../sandbox
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build . --parallel 4
+cd ../bin
+./sandbox
+```
+
 ## Screenshots:
 
 ![point lights](https://github.com/Luminic/AquilaEngine/blob/master/screenshots/point_lights_2021-03-28.png)
