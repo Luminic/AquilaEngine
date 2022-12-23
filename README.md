@@ -23,9 +23,12 @@ Currently, PBR Lighting is being implemented.
 
 ## Installing, Building, and Running:
 
+Warning! This project is still very much a work in progress; it has not been tested on different computers and may crash, freeze, or have other undesireable behavior.
+
 Install Dependencies:
 * Vulkan
 * Vulkan SDK: https://vulkan.lunarg.com/
+* GLM: https://github.com/g-truc/glm
 * SDL2: https://www.libsdl.org/
 * Assimp: https://github.com/assimp/assimp/blob/master/Build.md
 * CMake: https://cmake.org/download/
